@@ -1,10 +1,5 @@
 import type { PersonaFit } from "./persona";
 
-export interface CompetitorPage {
-  pageId: string;
-  name: string;
-}
-
 /** Creative angle buckets — the "message" a given ad is testing. */
 export type AdAngle =
   | "Love & Relationships"
@@ -41,22 +36,6 @@ export interface NormalizedAd {
   /** how well the ad copy speaks to the target persona */
   personaFit: PersonaFit;
 }
-
-export interface AccountBlock {
-  pageId: string;
-  pageName: string;
-  totalActiveAds: number;
-  topAds: NormalizedAd[];
-}
-
-export interface DashboardData {
-  generatedAt: string;
-  source: "graph-api" | "mock";
-  country: string;
-  accounts: AccountBlock[];
-}
-
-export type SortMode = "score" | "date";
 
 // Persona finder ------------------------------------------------------------
 
@@ -199,98 +178,4 @@ export interface DtcData {
   excluded: { brand: string; category: string; reason: string }[];
   cards: DtcCard[]; // exactly 5
   trends: DtcTrends;
-}
-
-// ---------------------------------------------------------------------------
-// Market insights (aggregate across the sampled competitors)
-// ---------------------------------------------------------------------------
-
-export interface AngleStat {
-  angle: AdAngle;
-  count: number;
-  activeCount: number;
-  avgScore: number;
-  share: number; // 0-1 of total sampled ads
-}
-
-export interface MarketInsights {
-  sampledAds: number;
-  sampledAccounts: number;
-  angleLeaderboard: AngleStat[];
-  longevityLeader: { pageName: string; creativeBody: string; daysActive: number } | null;
-  newestLaunch: { pageName: string; creativeBody: string; startDate: string } | null;
-  activeShare: number; // 0-1
-}
-
-// ---------------------------------------------------------------------------
-// Own-account performance (Marketing API)
-// ---------------------------------------------------------------------------
-
-export interface OwnAccount {
-  accountId: string; // act_XXXX
-  name: string;
-  business: string;
-}
-
-export interface AccountAdPerf {
-  adId: string;
-  name: string;
-  status: "ACTIVE" | "PAUSED";
-  impressions: number;
-  spend: number; // in account currency
-  clicks: number;
-  ctr: number; // %
-  cpc: number;
-  results: number; // conversions (purchases / leads)
-  cpa: number; // cost per result
-  daysActive: number;
-}
-
-export interface AccountPerf {
-  accountId: string;
-  name: string;
-  business: string;
-  currency: string;
-  totals: {
-    impressions: number;
-    spend: number;
-    clicks: number;
-    ctr: number;
-    results: number;
-    cpa: number;
-  };
-  topAds: AccountAdPerf[];
-}
-
-export interface AccountsData {
-  generatedAt: string;
-  source: "marketing-api" | "mock";
-  datePreset: string;
-  accounts: AccountPerf[];
-}
-
-// ---------------------------------------------------------------------------
-// Demand signal (Google Trends)
-// ---------------------------------------------------------------------------
-
-export interface TrendPoint {
-  date: string; // ISO week
-  value: number; // 0-100 relative interest
-}
-
-export interface TrendSeries {
-  keyword: string;
-  points: TrendPoint[];
-  latest: number;
-  changePct: number; // vs start of window
-  peak: number;
-}
-
-export interface TrendsData {
-  generatedAt: string;
-  source: "serpapi" | "mock";
-  geo: string;
-  window: string;
-  series: TrendSeries[];
-  rising: { query: string; growth: string }[];
 }

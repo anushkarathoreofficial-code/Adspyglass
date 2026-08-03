@@ -2,23 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type {
-  AccountsData,
   BrandsData,
-  DashboardData,
   DtcData,
-  MarketInsights,
-  NormalizedAd,
   PersonaData,
-  SortMode,
   SpyResult,
   TopicResearch,
-  TrendsData,
-  TrendSeries,
 } from "@/lib/types";
-import { sortAds } from "@/lib/score";
 
 type Tab = "dtc" | "persona" | "competitors";
-type AdsPayload = DashboardData & { insights: MarketInsights };
 
 interface PersonaMeta {
   name: string;
@@ -39,50 +30,6 @@ const short = (n: number) =>
   n >= 1e7 ? `${(n / 1e7).toFixed(1)}Cr` : n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`;
 const inr = (n: number) => `₹${short(n)}`;
 
-function gradient(key: string): string {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
-  return `linear-gradient(135deg, hsl(${h % 360} 65% 45%), hsl(${(h + 40) % 360} 70% 35%))`;
-}
-const scoreClass = (s: number) => (s >= 60 ? "hi" : s >= 35 ? "mid" : "lo");
-
-function Sparkline({ points, up }: { points: { value: number }[]; up: boolean }) {
-  const w = 120, h = 34, max = Math.max(1, ...points.map((p) => p.value));
-  const d = points
-    .map((p, i) => `${(i / (points.length - 1)) * w},${h - (p.value / max) * h}`)
-    .join(" ");
-  return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
-      <polyline points={d} fill="none" stroke={up ? "#35c98b" : "#ef6b6b"} strokeWidth="2" />
-    </svg>
-  );
-}
-
-// ---------- competitors tab ----------
-function AdRow({ ad }: { ad: NormalizedAd }) {
-  return (
-    <a className="ad" href={ad.snapshotUrl} target="_blank" rel="noreferrer">
-      <div className="thumb" style={{ background: gradient(ad.thumbKey) }} />
-      <div className="body">
-        <p className="text">{ad.creativeBody}</p>
-        <div className="meta">
-          <span className={`pfit-badge ${fitClass(ad.personaFit.score)}`}>persona {ad.personaFit.score}</span>
-          <span className="angle-tag">{ad.angle}</span>
-          <span className={`pill ${ad.isActive ? "active" : "stopped"}`}>{ad.isActive ? "ACTIVE" : "STOPPED"}</span>
-          <span>{ad.daysActive}d</span>
-          <span className="dot">•</span>
-          <span>from {ad.startDate}</span>
-          <span className="dot">•</span>
-          <span>{ad.variantCount} variant{ad.variantCount !== 1 ? "s" : ""}</span>
-        </div>
-      </div>
-      <div className={`score ${scoreClass(ad.scalabilityScore)}`}>
-        <div className="num">{ad.scalabilityScore}</div>
-        <div className="lbl">scale</div>
-      </div>
-    </a>
-  );
-}
 
 function LeaderPanel({ title, items }: { title: string; items: SpyResult["angleLeaderboard"] }) {
   const max = Math.max(1, ...items.map((i) => i.count));
@@ -330,150 +277,6 @@ function SpyTab() {
             </>
           )}
         </>
-      )}
-    </>
-  );
-}
-
-// ---------- my accounts tab ----------
-function AccountsTab() {
-  const [data, setData] = useState<AccountsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/accounts?t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setData(await res.json());
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load");
-      } finally { setLoading(false); }
-    })();
-  }, []);
-
-  if (loading) return <div className="loading">Loading your account performance…</div>;
-  if (error) return <div className="error">⚠️ {error}</div>;
-  if (!data) return null;
-
-  const grand = data.accounts.reduce(
-    (s, a) => ({ imp: s.imp + a.totals.impressions, spend: s.spend + a.totals.spend, res: s.res + a.totals.results }),
-    { imp: 0, spend: 0, res: 0 }
-  );
-
-  return (
-    <>
-      <div className={`banner ${data.source === "marketing-api" ? "live" : ""}`}>
-        {data.source === "marketing-api" ? (
-          <><b>Live</b> Marketing API data · {data.datePreset}.</>
-        ) : (
-          <><b>Mock data.</b> Set <code>META_ACCESS_TOKEN</code> (with <code>ads_read</code> on these accounts) to pull real impressions, spend & CPA · {data.datePreset}.</>
-        )}
-      </div>
-
-      <div className="insights">
-        <div className="kpi"><div className="lbl">Total impressions</div><div className="val">{short(grand.imp)}</div><div className="sub">across {data.accounts.length} accounts</div></div>
-        <div className="kpi"><div className="lbl">Total spend</div><div className="val">{inr(grand.spend)}</div><div className="sub">{data.datePreset}</div></div>
-        <div className="kpi"><div className="lbl">Results</div><div className="val">{short(grand.res)}</div><div className="sub">purchases / leads</div></div>
-        <div className="kpi"><div className="lbl">Blended CPA</div><div className="val">₹{grand.res ? Math.round(grand.spend / grand.res) : 0}</div><div className="sub">spend ÷ results</div></div>
-      </div>
-
-      <div className="grid" style={{ marginTop: 14 }}>
-        {data.accounts.map((acc) => (
-          <section className="account" key={acc.accountId} style={{ gridColumn: "1 / -1" }}>
-            <div className="head">
-              <span className="name">{acc.name} <span className="biz-tag">· {acc.business}</span></span>
-              <span className="count">{acc.accountId}</span>
-            </div>
-            <div className="acct-totals">
-              <div className="t">Impr<b>{short(acc.totals.impressions)}</b></div>
-              <div className="t">Spend<b>{inr(acc.totals.spend)}</b></div>
-              <div className="t">CTR<b>{acc.totals.ctr}%</b></div>
-              <div className="t">Results<b>{int(acc.totals.results)}</b></div>
-              <div className="t">CPA<b>₹{int(acc.totals.cpa)}</b></div>
-            </div>
-            <table className="perf-table">
-              <thead>
-                <tr><th>Ad</th><th>Impr</th><th>Spend</th><th>CTR</th><th>CPC</th><th>Results</th><th>CPA</th></tr>
-              </thead>
-              <tbody>
-                {acc.topAds.map((ad) => (
-                  <tr key={ad.adId}>
-                    <td>{ad.name}</td>
-                    <td>{short(ad.impressions)}</td>
-                    <td>{inr(ad.spend)}</td>
-                    <td>{ad.ctr}%</td>
-                    <td>₹{ad.cpc}</td>
-                    <td>{int(ad.results)}</td>
-                    <td>₹{int(ad.cpa)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-        ))}
-      </div>
-    </>
-  );
-}
-
-// ---------- trends tab ----------
-function TrendRow({ s }: { s: TrendSeries }) {
-  const up = s.changePct >= 0;
-  return (
-    <div className="trend-row">
-      <span className="kw">{s.keyword}</span>
-      <Sparkline points={s.points} up={up} />
-      <span style={{ textAlign: "right" }}>
-        <b style={{ color: up ? "var(--good)" : "var(--bad)" }}>{up ? "▲" : "▼"} {Math.abs(s.changePct)}%</b>
-        <div className="biz-tag">now {s.latest} · peak {s.peak}</div>
-      </span>
-    </div>
-  );
-}
-
-function TrendsTab() {
-  const [data, setData] = useState<TrendsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await fetch(`/api/trends?t=${Date.now()}`, { cache: "no-store" });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        setData(await res.json());
-      } catch (e) {
-        setError(e instanceof Error ? e.message : "Failed to load");
-      } finally { setLoading(false); }
-    })();
-  }, []);
-
-  if (loading) return <div className="loading">Loading demand signals…</div>;
-  if (error) return <div className="error">⚠️ {error}</div>;
-  if (!data) return null;
-
-  return (
-    <>
-      <div className={`banner ${data.source === "serpapi" ? "live" : ""}`}>
-        {data.source === "serpapi" ? (
-          <><b>Live</b> Google Trends (SerpAPI) · geo {data.geo} · {data.window}.</>
-        ) : (
-          <><b>Mock data.</b> Set <code>SERPAPI_KEY</code> for live Google Trends · geo {data.geo}.</>
-        )}
-      </div>
-      <div className="leader">
-        <h3>Search interest — astrology keywords ({data.window}, geo {data.geo})</h3>
-        {data.series.map((s) => <TrendRow key={s.keyword} s={s} />)}
-      </div>
-      {data.rising.length > 0 && (
-        <div className="leader">
-          <h3>Rising queries — creative angles to test next</h3>
-          <div className="rising">
-            {data.rising.map((r) => <span className="r" key={r.query}>{r.query} <b>{r.growth}</b></span>)}
-          </div>
-        </div>
       )}
     </>
   );
