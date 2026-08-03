@@ -1,0 +1,36 @@
+{
+  "_comment": "Your OWN Meta ad accounts (from the meta-ad-accounts registry). Used by the 'My Accounts' tab via the Marketing API. In mock mode the IDs are only a seed. Add/remove freely.",
+  "datePreset": "last_30d",
+  "accounts": [
+    {
+      "accountId": "act_3132224596887406",
+      "name": "Astrotalk India — App 1",
+      "business": "Astrotalk India (App)"
+    },
+    {
+      "accountId": "act_872869545439171",
+      "name": "Astrotalk India — App 2",
+      "business": "Astrotalk India (App)"
+    },
+    {
+      "accountId": "act_1915005495909687",
+      "name": "Astrotalk Native 1",
+      "business": "Astrotalk Native"
+    },
+    {
+      "accountId": "act_466971579310974",
+      "name": "Astrotalk NRI",
+      "business": "Astrotalk NRI"
+    },
+    {
+      "accountId": "act_6453656064729945",
+      "name": "Astrotalk Vernac",
+      "business": "Astrotalk Vernac"
+    },
+    {
+      "accountId": "act_512253471459291",
+      "name": "Astrotalk Store 1",
+      "business": "Astrotalk Store"
+    }
+  ]
+}

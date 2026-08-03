@@ -1,0 +1,169 @@
+{
+  "_comment": "Real US Ad Library ads harvested 2026-07-31, tagged for the Competitor Spy free-text search. Each ad carries auto-labeled hook/angle/format/CTA/funnel + category tags. Search matches query tokens against categories + hook + body + angle + brand. snapshot: https://www.facebook.com/ads/library/?id=<libraryId>",
+  "harvestedAt": "2026-07-31",
+  "ads": [
+    {
+      "brand": "Mediumchat",
+      "libraryId": "2432534343932542",
+      "startDate": "2026-05-13",
+      "mediaType": "image",
+      "format": "Story / static",
+      "funnel": "Chat · first 3 min free",
+      "cta": "Get Free Reading",
+      "hook": "Looking for real relationship guidance that actually helps?",
+      "angle": "Human-not-AI trust",
+      "categories": [
+        "relationship",
+        "general",
+        "trust"
+      ]
+    },
+    {
+      "brand": "Mediumchat",
+      "libraryId": "853252670703129",
+      "startDate": "2026-06-02",
+      "mediaType": "video",
+      "format": "UGC story",
+      "funnel": "Chat · first 3 min free",
+      "cta": "Get Free Reading",
+      "hook": "She felt lost and unsure. One late-night chat changed everything.",
+      "angle": "Emotional turning point",
+      "categories": [
+        "relationship",
+        "breakup",
+        "emotional"
+      ]
+    },
+    {
+      "brand": "Psychic Marie / Spiritual Glows",
+      "libraryId": "5267613576796468",
+      "startDate": "2026-05-01",
+      "mediaType": "video",
+      "format": "Talking-head VSL",
+      "funnel": "Quiz → emailed reading",
+      "cta": "Shop Now",
+      "hook": "Unsure whether you're with the right person? Ask 3 questions about your future.",
+      "angle": "Stop second-guessing / certainty",
+      "categories": [
+        "marriage",
+        "the one",
+        "relationship",
+        "uncertainty"
+      ]
+    },
+    {
+      "brand": "Psychic Marie / Spiritual Glows",
+      "libraryId": "1661707805058273",
+      "startDate": "2026-06-05",
+      "mediaType": "video",
+      "format": "Talking-head VSL",
+      "funnel": "Quiz → emailed reading",
+      "cta": "Shop Now",
+      "hook": "Stop second-guessing and start getting the answers you deserve.",
+      "angle": "Certainty / closure",
+      "categories": [
+        "relationship",
+        "uncertainty",
+        "general"
+      ]
+    },
+    {
+      "brand": "Readings by Mia (Adam Roa)",
+      "libraryId": "1285595496659530",
+      "startDate": "2025-12-10",
+      "mediaType": "video",
+      "format": "UGC talking-head",
+      "funnel": "Reading request → PDP",
+      "cta": "Learn More",
+      "hook": "POV: a soulmate reader calls out your girlfriend's exact initials.",
+      "angle": "Specificity as proof (initials)",
+      "categories": [
+        "marriage",
+        "soulmate",
+        "astrology",
+        "skeptic"
+      ]
+    },
+    {
+      "brand": "Chris Riley Psychic Medium",
+      "libraryId": "560303046842061",
+      "startDate": "2025-01-11",
+      "mediaType": "video",
+      "format": "Reviews / testimonial",
+      "funnel": "Free-reading giveaway",
+      "cta": "Learn More",
+      "hook": "Win a FREE reading — over 30,000 5★ reviews on Trustpilot.",
+      "angle": "Social proof / reviews",
+      "categories": [
+        "general",
+        "trust",
+        "astrology"
+      ]
+    },
+    {
+      "brand": "Michael Bryce Symonds",
+      "libraryId": "756978167438724",
+      "startDate": "2025-12-30",
+      "mediaType": "video",
+      "format": "Short hook video",
+      "funnel": "App install",
+      "cta": "Install now",
+      "hook": "Confused by your love-life? Need hope and the best way forward?",
+      "angle": "Confusion → hope",
+      "categories": [
+        "breakup",
+        "divorce",
+        "relationship",
+        "love"
+      ]
+    },
+    {
+      "brand": "Michelle Carter",
+      "libraryId": "2054475968837957",
+      "startDate": "2026-03-24",
+      "mediaType": "video",
+      "format": "Short reassurance",
+      "funnel": "Reading",
+      "cta": "Learn More",
+      "hook": "This time tomorrow, you could have clarity and comfort.",
+      "angle": "Fast relief / clarity",
+      "categories": [
+        "general",
+        "anxiety"
+      ]
+    },
+    {
+      "brand": "SkyWhisper",
+      "libraryId": "970911512526175",
+      "startDate": "2026-05-19",
+      "mediaType": "video",
+      "format": "Quiz hook",
+      "funnel": "Quiz → app install",
+      "cta": "Reveal",
+      "hook": "What does your aura colour say about your personality?",
+      "angle": "Self-discovery quiz",
+      "categories": [
+        "astrology",
+        "self-discovery",
+        "horoscope"
+      ]
+    },
+    {
+      "brand": "Karla Maree",
+      "libraryId": "889165480796420",
+      "startDate": "2026-04-27",
+      "mediaType": "video",
+      "format": "Founder VSL",
+      "funnel": "Low-ticket → AI tool",
+      "cta": "See details",
+      "hook": "Your million-dollar era — mapped from your chart. Something finally saw me accurately.",
+      "angle": "Founder story + astro strategy",
+      "categories": [
+        "career",
+        "astrology",
+        "business",
+        "direction"
+      ]
+    }
+  ]
+}

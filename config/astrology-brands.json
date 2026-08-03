@@ -1,0 +1,203 @@
+{
+  "_comment": "Brand-centric view of real astrology/psychic advertisers harvested from the US Meta Ad Library on 2026-07-31. tagline/positioning are synthesized from each brand's actual ad copy. Ads are shown oldest-first (oldest active = most scalable). Play link: https://www.facebook.com/ads/library/?id=<libraryId>",
+  "country": "US",
+  "harvestedAt": "2026-07-31",
+  "brands": [
+    {
+      "brand": "Mediumchat",
+      "category": "Psychic chat app",
+      "site": "mediumchat.com",
+      "siteUrl": "https://mediumchat.com",
+      "tagline": "Real human psychics — never AI.",
+      "positioning": "Relationship-only psychic chat, first 3 minutes free. Leans hard on \"human, not a bot\" trust.",
+      "adsLiveNote": "~66 ads live",
+      "ads": [
+        {
+          "libraryId": "2432534343932542",
+          "startDate": "2026-05-13",
+          "mediaType": "image",
+          "hook": "Looking for real relationship guidance that actually helps?"
+        },
+        {
+          "libraryId": "1691585112085270",
+          "startDate": "2026-05-27",
+          "mediaType": "image",
+          "hook": "Real human psychics — never AI. First 3 minutes free."
+        },
+        {
+          "libraryId": "853252670703129",
+          "startDate": "2026-06-02",
+          "mediaType": "video",
+          "durationSec": 36,
+          "hook": "She felt lost and unsure. One late-night chat changed everything."
+        },
+        {
+          "libraryId": "1352261323507923",
+          "startDate": "2026-06-16",
+          "mediaType": "video",
+          "durationSec": 47,
+          "hook": "Wondering about his intentions? Our psychics see what you can't."
+        }
+      ]
+    },
+    {
+      "brand": "Psychic Marie / Spiritual Glows",
+      "category": "Psychic reading (quiz funnel)",
+      "site": "officialpsychicmarie.com",
+      "siteUrl": "https://www.officialpsychicmarie.com",
+      "tagline": "Stop second-guessing. Get the answers you deserve.",
+      "positioning": "\"Ask 3 questions about your future\" quiz funnel; reading emailed in 1–2 days.",
+      "adsLiveNote": "~280 ads live",
+      "ads": [
+        {
+          "libraryId": "5267613576796468",
+          "startDate": "2026-05-01",
+          "mediaType": "video",
+          "durationSec": 106,
+          "hook": "Unsure whether you're with the right person? Ask 3 questions about your future."
+        },
+        {
+          "libraryId": "980556274933425",
+          "startDate": "2026-05-11",
+          "mediaType": "video",
+          "hook": "Clear answers to your love and life questions — a vision of what lies ahead."
+        },
+        {
+          "libraryId": "1299075911664680",
+          "startDate": "2026-05-11",
+          "mediaType": "video",
+          "hook": "Questioning the future of your relationship? Guidance on your next steps in love."
+        },
+        {
+          "libraryId": "1661707805058273",
+          "startDate": "2026-06-05",
+          "mediaType": "video",
+          "durationSec": 57,
+          "hook": "Stop second-guessing and start getting the answers you deserve."
+        }
+      ]
+    },
+    {
+      "brand": "Readings by Mia (Adam Roa)",
+      "category": "Soulmate / astrology reading",
+      "site": "spiritualsociety.co",
+      "siteUrl": "https://request.spiritualsociety.co",
+      "tagline": "She predicted my soulmate's initials.",
+      "positioning": "Skeptic-to-believer UGC: specificity as proof (initials, dates), then a personalized reading.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "1285595496659530",
+          "startDate": "2025-12-10",
+          "mediaType": "video",
+          "durationSec": 66,
+          "hook": "POV: a soulmate reader calls out your girlfriend's exact initials. I'm still shook."
+        }
+      ]
+    },
+    {
+      "brand": "Chris Riley Psychic Medium",
+      "category": "Independent psychic medium",
+      "site": "chrisrileypsychic.com",
+      "siteUrl": "https://chrisrileypsychic.com",
+      "tagline": "30,000+ five-star readings.",
+      "positioning": "Trust-by-reviews. Free-reading giveaway + Trustpilot social proof. Longest-running ad in the set.",
+      "adsLiveNote": "active since Jan 2025",
+      "ads": [
+        {
+          "libraryId": "560303046842061",
+          "startDate": "2025-01-11",
+          "mediaType": "video",
+          "durationSec": 41,
+          "hook": "You could win a FREE reading today — over 30,000 5★ reviews on Trustpilot."
+        }
+      ]
+    },
+    {
+      "brand": "SkyWhisper",
+      "category": "Astrology app",
+      "site": "skywhisper.app",
+      "siteUrl": "https://skywhisper.app",
+      "tagline": "Your cosmic blueprint — birth chart, aura & soulmate portrait.",
+      "positioning": "Quiz/portrait hooks (\"what does your aura colour say?\"). App-install, personalization angle.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "970911512526175",
+          "startDate": "2026-05-19",
+          "mediaType": "video",
+          "hook": "What does your aura colour say about your personality?"
+        }
+      ]
+    },
+    {
+      "brand": "Michael Bryce Symonds",
+      "category": "Love-reading app",
+      "site": "Google Play app",
+      "siteUrl": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&q=Michael%20Bryce%20Symonds&search_type=keyword_unordered",
+      "tagline": "Confused by your love-life? Get hope and a way forward.",
+      "positioning": "Short love-reading hooks driving app installs. Emotion-forward, quick.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "756978167438724",
+          "startDate": "2025-12-30",
+          "mediaType": "video",
+          "durationSec": 21,
+          "hook": "Confused by your love-life? Need hope and the best way forward? Get your Love Reading."
+        }
+      ]
+    },
+    {
+      "brand": "Michelle Carter",
+      "category": "Psychic reading",
+      "site": "Ad Library",
+      "siteUrl": "https://www.facebook.com/ads/library/?active_status=active&ad_type=all&country=US&q=Michelle%20Carter%20psychic&search_type=keyword_unordered",
+      "tagline": "This time tomorrow, you could have clarity and comfort.",
+      "positioning": "Ultra-short reassurance hook — fast promise of relief, minimal copy.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "2054475968837957",
+          "startDate": "2026-03-24",
+          "mediaType": "video",
+          "hook": "This time tomorrow, you could have clarity and comfort. Get a reading today."
+        }
+      ]
+    },
+    {
+      "brand": "Moon Magic",
+      "category": "Astrology jewelry (e-commerce)",
+      "site": "moonmagic.com",
+      "siteUrl": "https://www.moonmagic.com",
+      "tagline": "Jewelry meets astrology — loved by 500,000+.",
+      "positioning": "Product-bundle + discount offer. Social-proof volume, aspirational.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "1525633795132757",
+          "startDate": "2025-09-27",
+          "mediaType": "image",
+          "hook": "The $99 bundle everyone's talking about: jewelry + astrology, worth $200+."
+        }
+      ]
+    },
+    {
+      "brand": "Karla Maree",
+      "category": "Human Design + astro coaching",
+      "site": "karlamaree.co",
+      "siteUrl": "https://karlamaree.co",
+      "tagline": "Your million-dollar era — mapped from your chart.",
+      "positioning": "Founder story + AI 'strategist' built on Human Design + astrology. $37 entry.",
+      "adsLiveNote": "active",
+      "ads": [
+        {
+          "libraryId": "889165480796420",
+          "startDate": "2026-04-27",
+          "mediaType": "video",
+          "hook": "Something finally saw me accurately — your business strategy, mapped from your chart."
+        }
+      ]
+    }
+  ]
+}
