@@ -77,6 +77,8 @@ export interface BrandsData {
   country: string;
   harvestedAt: string;
   brands: BrandCard[];
+  source?: "live" | "harvested";
+  note?: string;
 }
 
 // Competitor spy (SpyGlass-style) -------------------------------------------

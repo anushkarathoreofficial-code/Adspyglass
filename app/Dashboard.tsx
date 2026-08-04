@@ -391,7 +391,6 @@ function BrandRadarTab() {
   const [data, setData] = useState<BrandsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [shuffled, setShuffled] = useState(false);
   const [view, setView] = useState<"browse" | "saved">("browse");
   const { saved, isSaved, toggle } = useSavedAds();
 
@@ -400,36 +399,35 @@ function BrandRadarTab() {
     setError(null);
     try {
       const res = await fetch(`/api/brands?t=${Date.now()}${doShuffle ? "&shuffle=1" : ""}`, { cache: "no-store" });
+      if (res.status === 429) { setError("You're refreshing too fast — wait a few seconds and try again."); return; }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
-      setShuffled(doShuffle);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally { setLoading(false); }
   }, []);
   useEffect(() => { load(false); }, [load]);
 
-  if (loading && !data) return <div className="loading">Loading brands…</div>;
+  if (loading && !data) return <div className="loading">Loading live brands from the Ad Library…</div>;
   if (error) return <div className="error">⚠️ {error}</div>;
   if (!data) return null;
+
+  const live = data.source === "live";
 
   return (
     <>
       <div className="banner live">
-        <b>{data.brands.length} psychic/astrology brands</b> from the US Ad Library. Each shows its site, its tagline (from its ads), and its ads {shuffled ? "(shuffled)" : "oldest-first"} — click any ad to play it.
+        <span className={`live-pill ${live ? "on" : "off"}`} style={{ marginRight: 8 }}>{live ? "● LIVE" : "◌ HARVESTED"}</span>
+        <b>{data.brands.length} psychic/astrology brands</b> {live ? "pulled live from the US Ad Library" : "(harvested fallback)"}. Each shows its site, a tagline from its ads, and its ads oldest-first — click to play, ⬇ to download. Hit <b>Shuffle</b> for a fresh set of advertisers.
       </div>
+      {data.note && <div className="excluded-note" style={{ margin: "0 0 12px" }}>{data.note}</div>}
       <div className="controls" style={{ margin: "0 0 6px" }}>
         <button className={`btn ${view === "browse" ? "on" : ""}`} onClick={() => setView("browse")}>Browse</button>
         <button className={`btn ${view === "saved" ? "on" : ""}`} onClick={() => setView("saved")}>⭐ Saved ({saved.length})</button>
         {view === "browse" && (
-          <>
-            <button className="btn" onClick={() => load(true)} disabled={loading}>
-              {loading ? "Shuffling…" : "🔀 Shuffle brands & ads"}
-            </button>
-            {shuffled && (
-              <button className="btn" onClick={() => load(false)} disabled={loading}>↺ Back to oldest-first</button>
-            )}
-          </>
+          <button className="btn" onClick={() => load(true)} disabled={loading}>
+            {loading ? "Fetching…" : "🔀 Shuffle — new brands & ads"}
+          </button>
         )}
       </div>
       {view === "saved"

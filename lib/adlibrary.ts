@@ -14,6 +14,11 @@ export interface RawSpyAd {
   body?: string;
   /** direct video/image file when the provider exposes one (real Ad Library CDN URL) */
   mediaUrl?: string;
+  /** brand-grouping fields (populated in live mode; used by the Astrology-brands tab) */
+  pageId?: string;
+  siteUrl?: string; // best destination link for the advertiser
+  siteDomain?: string; // human-readable domain (e.g. blog.mediumchat.com)
+  pageCategories?: string[];
 }
 
 export interface LiveFetch {
@@ -97,6 +102,10 @@ interface ScrapeCreatorsAd {
     videos?: { video_hd_url?: string; video_sd_url?: string }[];
     images?: { original_image_url?: string; resized_image_url?: string }[];
     cards?: unknown[];
+    caption?: string;
+    link_url?: string;
+    page_profile_uri?: string;
+    page_categories?: unknown;
   };
 }
 
@@ -151,6 +160,12 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
           snap.images?.[0]?.original_image_url ||
           snap.images?.[0]?.resized_image_url
         );
+        const siteUrl = safeHttpUrl(snap.link_url) ||
+          (snap.caption ? safeHttpUrl(`https://${snap.caption.replace(/^https?:\/\//, "")}`) : undefined) ||
+          safeHttpUrl(snap.page_profile_uri);
+        const pageCategories = Array.isArray(snap.page_categories)
+          ? (snap.page_categories as unknown[]).filter((x): x is string => typeof x === "string")
+          : undefined;
         return {
           brand: r.page_name ?? snap.page_name ?? "Unknown",
           libraryId: String(r.ad_archive_id ?? r.ad_id ?? ""),
@@ -164,6 +179,10 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
           categories: c.categories,
           body: text,
           mediaUrl,
+          pageId: r.page_id != null ? String(r.page_id) : undefined,
+          siteUrl,
+          siteDomain: snap.caption || undefined,
+          pageCategories,
         };
       })
       .filter((a) => a.libraryId);
