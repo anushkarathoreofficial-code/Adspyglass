@@ -2,8 +2,9 @@ import type { PlatformFindings, ResearchSource, TopicResearch } from "./types";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
-export function hasGemini(): boolean {
-  return Boolean(process.env.GEMINI_API_KEY);
+/** A client-supplied key (from the browser's localStorage) takes priority over the server env var. */
+export function hasGemini(clientKey?: string): boolean {
+  return Boolean(clientKey || process.env.GEMINI_API_KEY);
 }
 
 type Platform = "reddit" | "quora" | "web";
@@ -66,9 +67,9 @@ function strArr(v: unknown): string[] {
 }
 
 /** Fetch one platform's findings. Never throws — a failure here shouldn't sink the other two. */
-async function fetchPlatform(topic: string, platform: Platform): Promise<PlatformFindings> {
+async function fetchPlatform(topic: string, platform: Platform, apiKey: string): Promise<PlatformFindings> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(
-    process.env.GEMINI_API_KEY!
+    apiKey
   )}`;
   try {
     const res = await fetch(url, {
@@ -106,19 +107,28 @@ async function fetchPlatform(topic: string, platform: Platform): Promise<Platfor
   }
 }
 
-/** Realtime topic research via Gemini + Google Search grounding, split into Reddit / Quora / Web. */
-export async function researchTopic(topic: string): Promise<TopicResearch> {
+/**
+ * Realtime topic research via Gemini + Google Search grounding, split into Reddit / Quora / Web.
+ * @param clientKey optional key supplied by the browser (stored in its own localStorage, sent as a
+ *   per-request header) — takes priority over the server's GEMINI_API_KEY when present.
+ */
+export async function researchTopic(topic: string, clientKey?: string): Promise<TopicResearch> {
   const q = topic.trim();
   if (!q) return emptyResult(q, "unavailable", "Type a category to research.");
-  if (!hasGemini()) {
-    return emptyResult(q, "unavailable", "Set GEMINI_API_KEY in .env.local to enable live Reddit/Quora/web research.");
+  const apiKey = clientKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return emptyResult(
+      q,
+      "unavailable",
+      "Add a Gemini API key below (stored only in your browser) to enable live Reddit/Quora/web research."
+    );
   }
 
   try {
     const [reddit, quora, web] = await Promise.all([
-      fetchPlatform(q, "reddit"),
-      fetchPlatform(q, "quora"),
-      fetchPlatform(q, "web"),
+      fetchPlatform(q, "reddit", apiKey),
+      fetchPlatform(q, "quora", apiKey),
+      fetchPlatform(q, "web", apiKey),
     ]);
     return { source: "gemini", topic: q, reddit, quora, web };
   } catch (e) {

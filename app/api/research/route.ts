@@ -6,5 +6,6 @@ export const maxDuration = 60;
 
 export async function GET(req: Request) {
   const q = new URL(req.url).searchParams.get("q") ?? "";
-  return NextResponse.json(await researchTopic(q));
+  const clientKey = req.headers.get("x-gemini-api-key") ?? undefined;
+  return NextResponse.json(await researchTopic(q, clientKey));
 }

@@ -22,6 +22,62 @@ function useSavedAds() {
   return { saved, isSaved, toggle };
 }
 
+// ---------- locally-stored Gemini key (bring-your-own-key, browser-only) ----------
+const GEMINI_KEY_STORAGE = "geminiApiKey";
+
+function useLocalGeminiKey() {
+  const [key, setKeyState] = useState("");
+  useEffect(() => {
+    try { setKeyState(localStorage.getItem(GEMINI_KEY_STORAGE) || ""); } catch { /* ignore */ }
+  }, []);
+  const setKey = (next: string) => {
+    setKeyState(next);
+    try {
+      if (next) localStorage.setItem(GEMINI_KEY_STORAGE, next);
+      else localStorage.removeItem(GEMINI_KEY_STORAGE);
+    } catch { /* ignore */ }
+  };
+  return { key, setKey };
+}
+
+function GeminiKeyBar({ savedKey, onSave }: { savedKey: string; onSave: (key: string) => void }) {
+  const [input, setInput] = useState("");
+  const [editing, setEditing] = useState(false);
+
+  // Keep the form's input empty whenever there's no saved key and we're not actively
+  // editing (fresh load, or right after "Remove") — otherwise it'd show a stale value.
+  useEffect(() => {
+    if (!savedKey && !editing) setInput("");
+  }, [savedKey, editing]);
+
+  if (savedKey && !editing) {
+    return (
+      <div className="keybar">
+        <span className="k-ok">🔑 Gemini key saved in this browser</span>
+        <button className="k-link" onClick={() => { setInput(savedKey); setEditing(true); }}>Change</button>
+        <button className="k-link" onClick={() => onSave("")}>Remove</button>
+      </div>
+    );
+  }
+  return (
+    <form
+      className="keybar"
+      onSubmit={(e) => { e.preventDefault(); onSave(input.trim()); setEditing(false); }}
+    >
+      <span className="k-label">🔑 Gemini key (stored only in this browser, sent only with your research requests):</span>
+      <input
+        type="password"
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        placeholder="AIza…"
+        autoComplete="off"
+      />
+      <button type="submit" disabled={!input.trim()}>Save</button>
+      {savedKey && <button type="button" className="k-link" onClick={() => setEditing(false)}>Cancel</button>}
+    </form>
+  );
+}
+
 function SavedAdCard({ ad, onUnsave }: { ad: SavedAd; onUnsave: () => void }) {
   return (
     <div className="saved-ad">
@@ -196,20 +252,30 @@ function SpyTab() {
   const [view, setView] = useState<"search" | "saved">("search");
   const queryRef = useRef("");
   const { saved, isSaved, toggle } = useSavedAds();
+  const { key: geminiKey, setKey: setGeminiKey } = useLocalGeminiKey();
 
-  const runResearch = useCallback(async (query: string) => {
+  const runResearch = useCallback(async (query: string, keyOverride?: string) => {
     if (!query.trim()) { setResearch(null); return; }
     setResearching(true);
     setResearch(null);
     try {
-      const res = await fetch(`/api/research?q=${encodeURIComponent(query)}&t=${Date.now()}`, { cache: "no-store" });
+      const activeKey = keyOverride ?? geminiKey;
+      const res = await fetch(`/api/research?q=${encodeURIComponent(query)}&t=${Date.now()}`, {
+        cache: "no-store",
+        headers: activeKey ? { "x-gemini-api-key": activeKey } : undefined,
+      });
       setResearch(await res.json());
     } catch (e) {
       const note = e instanceof Error ? e.message : "Research failed";
       const empty = { summary: "", painPoints: [], phrases: [], questions: [], angles: [], sources: [] };
       setResearch({ source: "error", topic: query, reddit: empty, quora: empty, web: empty, note });
     } finally { setResearching(false); }
-  }, []);
+  }, [geminiKey]);
+
+  const saveGeminiKey = (next: string) => {
+    setGeminiKey(next);
+    if (queryRef.current) runResearch(queryRef.current, next);
+  };
 
   const run = useCallback(async (query: string, force = false) => {
     queryRef.current = query;
@@ -277,6 +343,7 @@ function SpyTab() {
             </div>
           )}
 
+          <GeminiKeyBar savedKey={geminiKey} onSave={saveGeminiKey} />
           {(researching || research) && <ResearchPanel r={research} loading={researching} />}
 
           {loading && <div className="loading">Searching ads…</div>}
