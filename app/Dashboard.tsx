@@ -560,6 +560,16 @@ export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("persona");
   return (
     <div className="wrap">
+      <a
+        className="feedback-badge"
+        href="mailto:anushka.rathore@astrotalk.com?subject=Astro%20Marketing%20Intelligence%20feedback"
+        target="_blank"
+        rel="noreferrer"
+      >
+        <div className="fb-title">🚧 Still building!</div>
+        <div className="fb-sub">Have suggestions? <span className="fb-link">Tell Anushka</span></div>
+      </a>
+
       <header className="top">
         <div>
           <h1>🔮 Astro Marketing Intelligence</h1>

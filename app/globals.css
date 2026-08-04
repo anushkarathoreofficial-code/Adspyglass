@@ -23,6 +23,30 @@ html, body {
 
 .wrap { max-width: 1280px; margin: 0 auto; padding: 28px 20px 60px; }
 
+.feedback-badge {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 50;
+  display: block;
+  max-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 13px;
+  text-decoration: none;
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0,0,0,.4);
+  transition: border-color .15s, transform .15s;
+}
+.feedback-badge:hover { border-color: var(--accent); transform: translateY(-1px); }
+.feedback-badge .fb-title { font-weight: 700; font-size: 12px; white-space: nowrap; }
+.feedback-badge .fb-sub { font-size: 11px; color: var(--muted); margin-top: 2px; line-height: 1.35; }
+.feedback-badge .fb-link { color: var(--accent); font-weight: 650; }
+@media (max-width: 700px) {
+  .feedback-badge { position: static; max-width: none; margin: 0 0 14px; }
+}
+
 header.top {
   display: flex;
   align-items: flex-end;
