@@ -211,6 +211,10 @@ function SpyTab() {
     setError(null);
     try {
       const res = await fetch(`/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}&t=${Date.now()}`, { cache: "no-store" });
+      if (res.status === 429) {
+        setError("You're searching too fast — wait a few seconds and try again.");
+        return;
+      }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setData(await res.json());
     } catch (e) {

@@ -93,6 +93,24 @@ available through the official API**, only on the Ad Library website. That's why
 here goes through **ScrapeCreators**, a provider that aggregates the public website, rather than
 Meta's own endpoint.
 
+## Security
+
+- **Secrets never reach the client.** API keys are read only in server-side `lib/` files (no
+  `NEXT_PUBLIC_` prefix), never logged, never returned in responses, and never committed
+  (`.env*` is gitignored; `.env.example` holds only blank placeholders). Store real keys as env vars
+  on the host (Railway / Vercel).
+- **Bring-your-own Gemini key** stays in the user's own browser `localStorage` and is sent only as a
+  request header to this app's own `/api/research` route over HTTPS — never persisted server-side.
+- **Rate limiting** (`lib/ratelimit.ts`) — `/api/spy` and `/api/research` spend paid third-party
+  credits, so they're capped per-IP (30 req/min) to prevent a public URL from being hammered into a
+  surprise bill ("denial of wallet"). Returns `429` + `Retry-After`; fails open on internal error.
+- **URL-scheme guarding** — third-party media URLs (from ScrapeCreators) are restricted to `http(s)`
+  before being placed in an `href`; story links are validated to their real platform domain. No
+  `javascript:`/`data:` URL can reach the DOM.
+- **Security headers** (`next.config.mjs`) — `X-Frame-Options: DENY` + `frame-ancestors 'none'`
+  (anti-clickjacking), `nosniff`, `Referrer-Policy`, `Permissions-Policy`, HSTS; `X-Powered-By`
+  removed. All outbound links use `rel="noreferrer"`.
+
 ## Roadmap ideas
 
 1. **Relevance filtering** on Competitor spy — raw keyword search returns everything mentioning a

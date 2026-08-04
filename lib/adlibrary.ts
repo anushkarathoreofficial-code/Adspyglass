@@ -28,6 +28,17 @@ export interface LiveFetch {
 
 const SEVEN_HOURS = 7 * 60 * 60 * 1000;
 
+/** Only allow http(s) media URLs — never let a javascript:/data: scheme reach an href. */
+function safeHttpUrl(url: string | undefined | null): string | undefined {
+  if (!url) return undefined;
+  try {
+    const p = new URL(url);
+    return p.protocol === "https:" || p.protocol === "http:" ? url : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export function hasProvider(): boolean {
   return Boolean(process.env.SCRAPECREATORS_API_KEY);
 }
@@ -134,12 +145,12 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
           : new Date(now).toISOString().slice(0, 10);
         const media: RawSpyAd["mediaType"] =
           snap.videos && snap.videos.length ? "video" : snap.cards && snap.cards.length > 1 ? "carousel" : "image";
-        const mediaUrl =
+        const mediaUrl = safeHttpUrl(
           snap.videos?.[0]?.video_hd_url ||
           snap.videos?.[0]?.video_sd_url ||
           snap.images?.[0]?.original_image_url ||
-          snap.images?.[0]?.resized_image_url ||
-          undefined;
+          snap.images?.[0]?.resized_image_url
+        );
         return {
           brand: r.page_name ?? snap.page_name ?? "Unknown",
           libraryId: String(r.ad_archive_id ?? r.ad_id ?? ""),
