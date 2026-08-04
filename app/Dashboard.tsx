@@ -1,36 +1,58 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  BrandsData,
-  DtcData,
-  PersonaData,
-  SpyResult,
-  TopicResearch,
-} from "@/lib/types";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { BrandsData, PlatformFindings, SavedAd, SpyResult, TopicResearch } from "@/lib/types";
 
-type Tab = "dtc" | "persona" | "competitors";
+type Tab = "persona" | "competitors";
 
-interface PersonaMeta {
-  name: string;
-  who: string;
-  coreInsight: string;
-  buys: string[];
-  convertingMoves: { label: string; desc: string }[];
-  rejects: string[];
-  topPains: string[];
+// ---------- universal saved-ads swipe file ----------
+function useSavedAds() {
+  const [saved, setSaved] = useState<SavedAd[]>([]);
+  useEffect(() => {
+    try { setSaved(JSON.parse(localStorage.getItem("savedAds") || "[]")); } catch { /* ignore */ }
+  }, []);
+  const persist = (next: SavedAd[]) => {
+    setSaved(next);
+    try { localStorage.setItem("savedAds", JSON.stringify(next)); } catch { /* ignore */ }
+  };
+  const isSaved = (id: string) => saved.some((s) => s.libraryId === id);
+  const toggle = (ad: SavedAd) => {
+    persist(isSaved(ad.libraryId) ? saved.filter((s) => s.libraryId !== ad.libraryId) : [ad, ...saved]);
+  };
+  return { saved, isSaved, toggle };
 }
-type PersonaPayload = PersonaData & { persona: PersonaMeta };
-type DtcPayload = DtcData & { persona: PersonaMeta };
-const fitClass = (s: number) => (s >= 65 ? "hi" : s >= 40 ? "mid" : "lo");
 
-// ---------- formatting helpers ----------
-const int = (n: number) => n.toLocaleString("en-IN");
-const short = (n: number) =>
-  n >= 1e7 ? `${(n / 1e7).toFixed(1)}Cr` : n >= 1e5 ? `${(n / 1e5).toFixed(1)}L` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}k` : `${n}`;
-const inr = (n: number) => `₹${short(n)}`;
+function SavedAdCard({ ad, onUnsave }: { ad: SavedAd; onUnsave: () => void }) {
+  return (
+    <div className="saved-ad">
+      <div className="body">
+        <div className="top">
+          <span className="brand">{ad.brand}</span>
+          <span className="origin">{ad.origin === "astrology-brands" ? "Astrology brands" : "Competitor spy"}</span>
+        </div>
+        <div className="hook">&ldquo;{ad.hook}&rdquo;</div>
+        <div className="date">Started {ad.startDate}</div>
+      </div>
+      <div className="actions">
+        <button className="save-btn saved" onClick={onUnsave}>★ Unsave</button>
+        <a className="plink" href={ad.snapshotUrl} target="_blank" rel="noreferrer">▶ Open →</a>
+      </div>
+    </div>
+  );
+}
 
+function SavedList({ saved, toggle }: { saved: SavedAd[]; toggle: (ad: SavedAd) => void }) {
+  return (
+    <>
+      <div className="spy-count"><b>{saved.length}</b> saved ad{saved.length !== 1 ? "s" : ""} · your swipe file, shared across every tab (stored in this browser)</div>
+      {saved.length === 0
+        ? <div className="excluded-note">No saved ads yet. Hit ☆ Save on any ad to build your swipe file.</div>
+        : saved.map((a) => <SavedAdCard key={a.libraryId} ad={a} onUnsave={() => toggle(a)} />)}
+    </>
+  );
+}
 
+// ---------- competitor spy: ad list + leaderboards ----------
 function LeaderPanel({ title, items }: { title: string; items: SpyResult["angleLeaderboard"] }) {
   const max = Math.max(1, ...items.map((i) => i.count));
   return (
@@ -44,6 +66,10 @@ function LeaderPanel({ title, items }: { title: string; items: SpyResult["angleL
       ))}
     </div>
   );
+}
+
+function spyAdToSaved(a: SpyResult["ads"][number]): SavedAd {
+  return { libraryId: a.libraryId, brand: a.brand, hook: a.hook, snapshotUrl: a.snapshotUrl, startDate: a.startDate, origin: "competitor-spy" };
 }
 
 function SpyAdRow({ a, oldest, saved, onToggleSave }: { a: SpyResult["ads"][number]; oldest: boolean; saved: boolean; onToggleSave: () => void }) {
@@ -71,23 +97,6 @@ function SpyAdRow({ a, oldest, saved, onToggleSave }: { a: SpyResult["ads"][numb
   );
 }
 
-// localStorage-backed swipe file
-function useSavedAds() {
-  const [saved, setSaved] = useState<SpyResult["ads"]>([]);
-  useEffect(() => {
-    try { setSaved(JSON.parse(localStorage.getItem("savedAds") || "[]")); } catch { /* ignore */ }
-  }, []);
-  const persist = (next: SpyResult["ads"]) => {
-    setSaved(next);
-    try { localStorage.setItem("savedAds", JSON.stringify(next)); } catch { /* ignore */ }
-  };
-  const isSaved = (id: string) => saved.some((s) => s.libraryId === id);
-  const toggle = (ad: SpyResult["ads"][number]) => {
-    persist(isSaved(ad.libraryId) ? saved.filter((s) => s.libraryId !== ad.libraryId) : [ad, ...saved]);
-  };
-  return { saved, isSaved, toggle };
-}
-
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   const m = Math.round(diff / 60000);
@@ -105,45 +114,72 @@ function untilTime(iso: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// ---------- live trend research: Reddit · Quora · Web ----------
+const PLATFORM_META = {
+  reddit: { icon: "👽", label: "Reddit" },
+  quora: { icon: "❓", label: "Quora" },
+  web: { icon: "🌐", label: "Web" },
+} as const;
+
+function PlatformCard({ platform, data }: { platform: keyof typeof PLATFORM_META; data: PlatformFindings }) {
+  const meta = PLATFORM_META[platform];
+  const groups: { title: string; items: string[]; cls?: string }[] = [
+    { title: "Pain points", items: data.painPoints },
+    { title: "Real phrases", items: data.phrases, cls: "phrase" },
+    { title: "Top questions", items: data.questions },
+    { title: "Angles to try", items: data.angles },
+  ];
+  const isEmpty = !data.summary && groups.every((g) => g.items.length === 0);
+  return (
+    <div className="rcard">
+      <div className="rtitle">{meta.icon} {meta.label}</div>
+      {data.note && <div className="rempty">{data.note}</div>}
+      {data.summary && <div className="rsum">{data.summary}</div>}
+      {isEmpty && !data.note && <div className="rempty">No findings for this platform.</div>}
+      {groups.map((g) => g.items.length > 0 && (
+        <div key={g.title}>
+          <h6>{g.title}</h6>
+          <ul className={g.cls}>{g.items.map((x, i) => <li key={i}>{x}</li>)}</ul>
+        </div>
+      ))}
+      {data.sources.length > 0 && (
+        <div className="rsrc">
+          {data.sources.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noreferrer">🔗 {s.title || new URL(s.url).hostname}</a>)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ResearchPanel({ r, loading }: { r: TopicResearch | null; loading: boolean }) {
   if (loading) {
-    return <div className="research"><div className="rhead"><h3>🌐 Live trend research — Reddit · Quora · web</h3></div><div className="rnote">Researching what&rsquo;s trending right now…</div></div>;
+    return (
+      <div className="research">
+        <div className="rhead"><h3>Live trend research</h3></div>
+        <div className="rnote-wrap"><div className="rnote">Researching Reddit, Quora, and the web right now…</div></div>
+      </div>
+    );
   }
   if (!r) return null;
   if (r.source !== "gemini") {
     return (
       <div className="research">
-        <div className="rhead"><h3>🌐 Live trend research — Reddit · Quora · web</h3></div>
-        <div className="rnote">{r.note}</div>
+        <div className="rhead"><h3>Live trend research</h3></div>
+        <div className="rnote-wrap"><div className="rnote">{r.note}</div></div>
       </div>
     );
   }
-  const cols: { title: string; items: string[]; cls?: string }[] = [
-    { title: "Trending pain points", items: r.trendingPains },
-    { title: "Real phrases people use", items: r.phrases, cls: "phrase" },
-    { title: "Top questions asked", items: r.questions },
-    { title: "Angles that would resonate", items: r.angles },
-  ];
   return (
     <div className="research">
       <div className="rhead">
-        <h3>🌐 Live trend research — Reddit · Quora · web</h3>
+        <h3>Live trend research</h3>
         <span className="live-dot">● live · &ldquo;{r.topic}&rdquo;</span>
       </div>
-      {r.summary && <div className="rsummary">{r.summary}</div>}
-      <div className="rgrid">
-        {cols.map((c) => c.items.length > 0 && (
-          <div key={c.title}>
-            <h5>{c.title}</h5>
-            <ul className={c.cls}>{c.items.map((x, i) => <li key={i}>{x}</li>)}</ul>
-          </div>
-        ))}
+      <div className="research3">
+        <PlatformCard platform="reddit" data={r.reddit} />
+        <PlatformCard platform="quora" data={r.quora} />
+        <PlatformCard platform="web" data={r.web} />
       </div>
-      {r.sources.length > 0 && (
-        <div className="rsources">
-          {r.sources.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noreferrer">🔗 {s.title || new URL(s.url).hostname}</a>)}
-        </div>
-      )}
     </div>
   );
 }
@@ -169,7 +205,9 @@ function SpyTab() {
       const res = await fetch(`/api/research?q=${encodeURIComponent(query)}&t=${Date.now()}`, { cache: "no-store" });
       setResearch(await res.json());
     } catch (e) {
-      setResearch({ source: "error", topic: query, summary: "", trendingPains: [], phrases: [], questions: [], angles: [], sources: [], note: e instanceof Error ? e.message : "Research failed" });
+      const note = e instanceof Error ? e.message : "Research failed";
+      const empty = { summary: "", painPoints: [], phrases: [], questions: [], angles: [], sources: [] };
+      setResearch({ source: "error", topic: query, reddit: empty, quora: empty, web: empty, note });
     } finally { setResearching(false); }
   }, []);
 
@@ -199,7 +237,7 @@ function SpyTab() {
   return (
     <>
       <div className="banner live">
-        <b>Competitor spy.</b> Search a category (divorce, ex back, marriage, cheating, astrology…) — get <b>live trends</b> from Reddit / Quora / the web <i>plus</i> the real ads brands are running for it (hooks, angles, formats, funnels).
+        <b>Competitor spy.</b> Search a category (divorce, ex back, marriage, cheating, astrology…) — get <b>live trends</b> from Reddit, Quora, and the web as three separate sections, <i>plus</i> the real ads brands are running for it (hooks, angles, formats, funnels).
       </div>
 
       {data && (
@@ -219,12 +257,7 @@ function SpyTab() {
       {data?.note && <div className="excluded-note" style={{ margin: "0 0 12px" }}>{data.note}</div>}
 
       {view === "saved" ? (
-        <>
-          <div className="spy-count"><b>{saved.length}</b> saved ad{saved.length !== 1 ? "s" : ""} · your swipe file (stored in this browser)</div>
-          {saved.length === 0
-            ? <div className="excluded-note">No saved ads yet. Hit ☆ Save on any ad to build your swipe file.</div>
-            : saved.map((a) => <SpyAdRow key={a.libraryId} a={a} oldest={false} saved onToggleSave={() => toggle(a)} />)}
-        </>
+        <SavedList saved={saved} toggle={toggle} />
       ) : (
         <>
           <form className="spy-search" onSubmit={(e) => { e.preventDefault(); run(input); }}>
@@ -263,7 +296,7 @@ function SpyTab() {
                 <div className="spy-layout">
                   <div>
                     {data.ads.map((a, i) => (
-                      <SpyAdRow key={a.libraryId} a={a} oldest={i === 0} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(a)} />
+                      <SpyAdRow key={a.libraryId} a={a} oldest={i === 0} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(spyAdToSaved(a))} />
                     ))}
                   </div>
                   <div>
@@ -292,23 +325,40 @@ const PlayIcon = () => (
   <svg width="16" height="16" viewBox="0 0 16 16" fill="#fff"><path d="M4 2.5v11l9-5.5z" /></svg>
 );
 
-function AdTile({ ad, oldest }: { ad: BrandsData["brands"][number]["ads"][number]; oldest: boolean }) {
+function brandAdToSaved(brand: string, ad: BrandsData["brands"][number]["ads"][number]): SavedAd {
+  return { libraryId: ad.libraryId, brand, hook: ad.hook, snapshotUrl: ad.snapshotUrl, startDate: ad.startDate, origin: "astrology-brands" };
+}
+
+function AdTile({
+  brand, ad, oldest, saved, onToggleSave,
+}: {
+  brand: string;
+  ad: BrandsData["brands"][number]["ads"][number];
+  oldest: boolean;
+  saved: boolean;
+  onToggleSave: () => void;
+}) {
   return (
-    <a className="ad-tile" href={ad.snapshotUrl} target="_blank" rel="noreferrer" title="Play in Meta Ad Library">
-      <div className="ad-thumb" style={{ background: brandGradient(ad.libraryId) }}>
-        {oldest && <span className="badge-old">oldest</span>}
-        <span className="play"><PlayIcon /></span>
-        {ad.mediaType === "video" && ad.durationSec && (
-          <span className="dur">{Math.floor(ad.durationSec / 60)}:{String(ad.durationSec % 60).padStart(2, "0")}</span>
-        )}
-      </div>
+    <div className="ad-tile">
+      <a className="ad-thumb-link" href={ad.snapshotUrl} target="_blank" rel="noreferrer" title="Play in Meta Ad Library">
+        <div className="ad-thumb" style={{ background: brandGradient(ad.libraryId) }}>
+          {oldest && <span className="badge-old">oldest</span>}
+          <span className="play"><PlayIcon /></span>
+          {ad.mediaType === "video" && ad.durationSec && (
+            <span className="dur">{Math.floor(ad.durationSec / 60)}:{String(ad.durationSec % 60).padStart(2, "0")}</span>
+          )}
+        </div>
+      </a>
       <div className="hook">{ad.hook}</div>
-      <div className="started">Started {ad.startDate} · <span className="go">▶ play</span></div>
-    </a>
+      <div className="tile-foot">
+        <span className="started">Started {ad.startDate}</span>
+        <button className={`save-btn ${saved ? "saved" : ""}`} onClick={onToggleSave} title={saved ? "Unsave" : "Save"}>{saved ? "★" : "☆"}</button>
+      </div>
+    </div>
   );
 }
 
-function BrandCardView({ b }: { b: BrandsData["brands"][number] }) {
+function BrandCardView({ b, isSaved, toggle }: { b: BrandsData["brands"][number]; isSaved: (id: string) => boolean; toggle: (ad: SavedAd) => void }) {
   return (
     <div className="brand-card">
       <div className="brand-top">
@@ -324,7 +374,16 @@ function BrandCardView({ b }: { b: BrandsData["brands"][number] }) {
       <div className="brand-positioning">{b.positioning}</div>
       <div className="ad-strip-label">Their ads · oldest first ({b.ads.length})</div>
       <div className="ad-strip">
-        {b.ads.map((ad, i) => <AdTile key={ad.libraryId} ad={ad} oldest={i === 0} />)}
+        {b.ads.map((ad, i) => (
+          <AdTile
+            key={ad.libraryId}
+            brand={b.brand}
+            ad={ad}
+            oldest={i === 0}
+            saved={isSaved(ad.libraryId)}
+            onToggleSave={() => toggle(brandAdToSaved(b.brand, ad))}
+          />
+        ))}
       </div>
     </div>
   );
@@ -335,6 +394,8 @@ function BrandRadarTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [shuffled, setShuffled] = useState(false);
+  const [view, setView] = useState<"browse" | "saved">("browse");
+  const { saved, isSaved, toggle } = useSavedAds();
 
   const load = useCallback(async (doShuffle: boolean) => {
     setLoading(true);
@@ -360,158 +421,48 @@ function BrandRadarTab() {
         <b>{data.brands.length} psychic/astrology brands</b> from the US Ad Library. Each shows its site, its tagline (from its ads), and its ads {shuffled ? "(shuffled)" : "oldest-first"} — click any ad to play it.
       </div>
       <div className="controls" style={{ margin: "0 0 6px" }}>
-        <button className="btn" onClick={() => load(true)} disabled={loading}>
-          {loading ? "Shuffling…" : "🔀 Shuffle brands & ads"}
-        </button>
-        {shuffled && (
-          <button className="btn" onClick={() => load(false)} disabled={loading}>↺ Back to oldest-first</button>
+        <button className={`btn ${view === "browse" ? "on" : ""}`} onClick={() => setView("browse")}>Browse</button>
+        <button className={`btn ${view === "saved" ? "on" : ""}`} onClick={() => setView("saved")}>⭐ Saved ({saved.length})</button>
+        {view === "browse" && (
+          <>
+            <button className="btn" onClick={() => load(true)} disabled={loading}>
+              {loading ? "Shuffling…" : "🔀 Shuffle brands & ads"}
+            </button>
+            {shuffled && (
+              <button className="btn" onClick={() => load(false)} disabled={loading}>↺ Back to oldest-first</button>
+            )}
+          </>
         )}
       </div>
-      {data.brands.map((b) => <BrandCardView key={b.brand} b={b} />)}
-    </>
-  );
-}
-
-// ---------- persona × DTC tab (spec v2) ----------
-function DtcCardView({ c }: { c: DtcData["cards"][number] }) {
-  return (
-    <div className="dtc">
-      <div>
-        <span className="brand">{c.brand}</span>
-        <span className="mediatag">{c.mediaType}</span>
-        <div><span className="cat">{c.category}</span></div>
-      </div>
-      <div className="fields">
-        <div className="f">
-          <div className="k">Hook & copy angle</div>
-          <div className="v hook">&ldquo;{c.hook}&rdquo;</div>
-          <div className="v" style={{ color: "var(--muted)", marginTop: 3 }}>{c.angle}</div>
-        </div>
-        <div className="f">
-          <div className="k">Ad format / media</div>
-          <div className="v">{c.format}</div>
-        </div>
-        <div className="f">
-          <div className="k">Sales approach & funnel</div>
-          <div className="v">{c.salesApproach}</div>
-          <div className="v" style={{ color: "var(--muted)", marginTop: 2 }}>Funnel: {c.funnelType}</div>
-        </div>
-        <div className="f">
-          <div className="k">Call to action</div>
-          <span className="cta-pill">{c.cta}</span>
-        </div>
-        <div className="need">Serves persona need: <b>{c.personaNeed}</b></div>
-      </div>
-      <div className="foot">
-        <span>{c.daysActive}d active · {c.variantCount} variant{c.variantCount !== 1 ? "s" : ""}</span>
-        <a className="plink" href={c.snapshotUrl} target="_blank" rel="noreferrer">Open in Ad Library →</a>
-      </div>
-    </div>
-  );
-}
-
-function CountList({ items }: { items: DtcData["trends"]["formats"] }) {
-  return (
-    <>
-      {items.map((i) => (
-        <div className="crow" key={i.label}><span>{i.label}</span><span className="c">{i.count}</span></div>
-      ))}
-    </>
-  );
-}
-
-function DtcTab() {
-  const [data, setData] = useState<DtcPayload | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res = await fetch(`/api/dtc?t=${Date.now()}`, { cache: "no-store" });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally { setLoading(false); }
-  }, []);
-  useEffect(() => { load(); }, [load]);
-
-  if (loading && !data) return <div className="loading">Sampling US DTC ads for the persona…</div>;
-  if (error) return <div className="error">⚠️ {error}</div>;
-  if (!data) return null;
-  const t = data.trends;
-
-  return (
-    <>
-      <div className="banner live">
-        <b>US market · legitimate DTC wellness.</b> 5 ads from 5 distinct brands (1 top active ad each), serving the persona&rsquo;s emotional needs. Real ads harvested {data.harvestedAt}.
-      </div>
-
-      <div className="persona-brief">
-        <h2>🎯 {data.persona.name}</h2>
-        <div className="who">{data.persona.who}</div>
-        <div className="insight">{data.persona.coreInsight}</div>
-        <div className="who" style={{ marginTop: 8 }}>Supply = wellness/DTC brands that remove this persona&rsquo;s emotional load (cortisol, mood, energy, sleep). Astrology/psychic explicitly filtered out.</div>
-      </div>
-
-      <div className="excluded-note">
-        <b>Brand-quality filter removed {data.excludedCount}</b> spammy/off-persona ads from the pool of {data.poolSize + data.excludedCount}:
-        <ul>
-          {data.excluded.map((e) => <li key={e.brand}>{e.brand} <span style={{ opacity: .7 }}>({e.category})</span> — {e.reason}</li>)}
-        </ul>
-      </div>
-
-      <div className="controls" style={{ margin: "6px 0 2px" }}>
-        <button className="btn" onClick={load} disabled={loading}>{loading ? "Loading…" : "↻ Reshuffle 5 brands"}</button>
-      </div>
-
-      <div className="dtc-grid">
-        {data.cards.map((c) => <DtcCardView key={c.libraryId} c={c} />)}
-      </div>
-
-      <div className="trends-panel">
-        <h3>📈 Trending insights — what&rsquo;s working across these 5 brands</h3>
-        <div className="sub">Synthesized live from the sampled ads (US market).</div>
-        <div className="trends-cols">
-          <div><h4>Top formats</h4><CountList items={t.formats} /></div>
-          <div><h4>Sales approaches</h4><CountList items={t.salesApproaches} /></div>
-          <div><h4>CTA mix</h4><CountList items={t.ctas} /></div>
-          <div><h4>Recurring hooks</h4><CountList items={t.recurringHooks} /></div>
-        </div>
-        <ul className="syn">
-          {t.synthesis.map((s, i) => <li key={i}>{s}</li>)}
-        </ul>
-      </div>
+      {view === "saved"
+        ? <SavedList saved={saved} toggle={toggle} />
+        : data.brands.map((b) => <BrandCardView key={b.brand} b={b} isSaved={isSaved} toggle={toggle} />)}
     </>
   );
 }
 
 // ---------- shell ----------
 export default function Dashboard() {
-  const [tab, setTab] = useState<Tab>("dtc");
+  const [tab, setTab] = useState<Tab>("persona");
   return (
     <div className="wrap">
       <header className="top">
         <div>
           <h1>🔮 Astro Marketing Intelligence</h1>
-          <p>Your performance · competitor creative · market demand — one view</p>
+          <p>Competitor creative · live market demand — one view</p>
         </div>
       </header>
 
       <div className="tabs">
-        <button className={tab === "dtc" ? "active" : ""} onClick={() => setTab("dtc")}>🎯 Persona × DTC (US)</button>
         <button className={tab === "persona" ? "active" : ""} onClick={() => setTab("persona")}>🔮 Astrology brands</button>
         <button className={tab === "competitors" ? "active" : ""} onClick={() => setTab("competitors")}>🔎 Competitor spy</button>
       </div>
 
-      {tab === "dtc" && <DtcTab />}
       {tab === "persona" && <BrandRadarTab />}
       {tab === "competitors" && <SpyTab />}
 
       <div className="footnote">
-        <b>Persona × DTC:</b> 5 random legit DTC brands serving the persona&rsquo;s needs (astrology/clickbait filtered out). <b>Astrology brands:</b> brand identity + ads oldest-first, shuffle for a new set. <b>Competitor spy:</b> live Reddit/Quora/web trend research (Gemini) + real ads by category.
+        <b>Astrology brands:</b> brand identity + ads oldest-first, shuffle for a new set. <b>Competitor spy:</b> live Reddit / Quora / Web trend research (Gemini) + real ads by category. Save any ad (☆) — your swipe file is shared across both tabs.
       </div>
     </div>
   );

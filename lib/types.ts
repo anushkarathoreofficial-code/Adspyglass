@@ -114,68 +114,48 @@ export interface SpyResult {
   note?: string;
 }
 
+export interface CountItem {
+  label: string;
+  count: number;
+}
+
 // Live trend research (Gemini + Google Search grounding) --------------------
+// Split per-platform so Reddit / Quora / general-web findings are genuinely
+// distinct rather than one blended summary.
 
 export interface ResearchSource {
   title: string;
   url: string;
 }
 
-export interface TopicResearch {
-  source: "gemini" | "unavailable" | "error";
-  topic: string;
+export interface PlatformFindings {
   summary: string;
-  trendingPains: string[];
-  phrases: string[]; // exact language people use (Reddit/Quora voice)
+  painPoints: string[];
+  phrases: string[]; // exact language people use on this platform
   questions: string[]; // top questions people ask
   angles: string[]; // ad angles that would resonate now
   sources: ResearchSource[];
-  note?: string; // e.g. "set GEMINI_API_KEY", or an error message
+  note?: string; // per-platform error/empty note
 }
 
-// Persona × DTC dashboard (US) ----------------------------------------------
+export interface TopicResearch {
+  source: "gemini" | "unavailable" | "error";
+  topic: string;
+  reddit: PlatformFindings;
+  quora: PlatformFindings;
+  web: PlatformFindings;
+  note?: string; // top-level note (e.g. "set GEMINI_API_KEY")
+}
 
-export interface DtcCard {
-  brand: string;
-  category: string;
+// Universal saved-ads swipe file ---------------------------------------------
+// Minimal shape shared by every ad-bearing tab so one localStorage file works
+// everywhere ("save ads in all").
+
+export interface SavedAd {
   libraryId: string;
+  brand: string;
+  hook: string;
   snapshotUrl: string;
   startDate: string;
-  daysActive: number;
-  variantCount: number;
-  mediaType: "video" | "image" | "carousel";
-  format: string;
-  hook: string;
-  angle: string;
-  salesApproach: string;
-  funnelType: string;
-  cta: string;
-  personaNeed: string;
-  personaFitScore: number;
-}
-
-export interface CountItem {
-  label: string;
-  count: number;
-}
-
-export interface DtcTrends {
-  formats: CountItem[];
-  salesApproaches: CountItem[];
-  ctas: CountItem[];
-  mediaMix: CountItem[];
-  recurringHooks: CountItem[];
-  synthesis: string[];
-}
-
-export interface DtcData {
-  generatedAt: string;
-  source: "ad-library-harvest";
-  country: string;
-  harvestedAt: string;
-  poolSize: number; // legitimate brands available
-  excludedCount: number; // filtered by brand-quality filter
-  excluded: { brand: string; category: string; reason: string }[];
-  cards: DtcCard[]; // exactly 5
-  trends: DtcTrends;
+  origin: "astrology-brands" | "competitor-spy";
 }
