@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { BrandsData, Platform, PlatformResult, SavedAd, SpyResult } from "@/lib/types";
+import { doSignOut } from "./actions";
 
 type Tab = "persona" | "competitors" | "reddit" | "quora" | "web";
 
@@ -558,7 +559,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "web", label: "🌐 Web" },
 ];
 
-export default function Dashboard() {
+export default function Dashboard({ userEmail }: { userEmail?: string | null }) {
   const [tab, setTab] = useState<Tab>("persona");
   return (
     <div className="wrap">
@@ -577,6 +578,12 @@ export default function Dashboard() {
           <h1>🔮 Astro Marketing Intelligence</h1>
           <p>Competitor creative · live market demand — one view</p>
         </div>
+        {userEmail && (
+          <form action={doSignOut} className="acct-chip">
+            <span className="acct-email" title={userEmail}>{userEmail}</span>
+            <button className="signout-btn" type="submit">Sign out</button>
+          </form>
+        )}
       </header>
 
       <div className="tabs">
