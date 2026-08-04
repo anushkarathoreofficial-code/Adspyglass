@@ -1,4 +1,4 @@
-import type { PlatformFindings, ResearchSource, TopicResearch } from "./types";
+import type { Platform, PlatformResult, Story } from "./types";
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -7,14 +7,8 @@ export function hasGemini(clientKey?: string): boolean {
   return Boolean(clientKey || process.env.GEMINI_API_KEY);
 }
 
-type Platform = "reddit" | "quora" | "web";
-
-function emptyPlatform(note?: string): PlatformFindings {
-  return { summary: "", painPoints: [], phrases: [], questions: [], angles: [], sources: [], note };
-}
-
-function emptyResult(topic: string, source: TopicResearch["source"], note: string): TopicResearch {
-  return { source, topic, reddit: emptyPlatform(), quora: emptyPlatform(), web: emptyPlatform(), note };
+function emptyResult(topic: string, platform: Platform, source: PlatformResult["source"], note: string): PlatformResult {
+  return { source, platform, topic, stories: [], note };
 }
 
 const SCOPE: Record<Platform, string> = {
@@ -26,27 +20,34 @@ const SCOPE: Record<Platform, string> = {
     "Focus on the general web — news articles, blogs, and forums — EXCLUDING reddit.com and quora.com (those platforms are researched separately). Use plain web search queries about the topic.",
 };
 
-const PROMPT = (topic: string, platform: Platform) => `You are an ad-strategy researcher. ${SCOPE[platform]}
+const PLATFORM_LABEL: Record<Platform, string> = { reddit: "Reddit", quora: "Quora", web: "the web" };
 
-Research what is trending RIGHT NOW (2026) around the topic "${topic}" as it relates to US consumers who might be marketed to. Capture the real, current voice of people on this platform — not generic marketing speak.
+const URL_RULE: Record<Platform, string> = {
+  reddit:
+    'STRICT RULE: every "url" MUST be a direct link to an actual reddit.com (or redd.it) thread, post, or comment page. Never link to an article, blog, or any other site that merely discusses or cites Reddit — the link itself must open on reddit.com.',
+  quora:
+    'STRICT RULE: every "url" MUST be a direct link to an actual quora.com question or answer page. Never link to an article, blog, or any other site that merely discusses or cites Quora — the link itself must open on quora.com.',
+  web:
+    'STRICT RULE: every "url" must be a real news article, blog post, or forum page — and must NOT be a reddit.com, redd.it, or quora.com link (those platforms are covered by their own tabs).',
+};
 
-Return ONLY a JSON object (no markdown fences) with these keys:
+const PROMPT = (topic: string, platform: Platform, shuffle: boolean) => `You are an ad-strategy researcher. ${SCOPE[platform]}
+
+Find real, specific stories/threads/posts about "${topic}" on ${PLATFORM_LABEL[platform]} that a US audience is currently engaging with — genuine results you found via search, not invented ones.
+${URL_RULE[platform]}
+${shuffle ? "IMPORTANT: the user already saw the most obvious top hits. Dig deeper and surface a DIFFERENT set of real stories this time — less obvious threads, older or newer ones, different angles — not the same handful you'd return by default." : ""}
+
+Return ONLY a JSON object (no markdown fences) with this shape:
 {
-  "summary": "2-3 sentence read on what's trending in this topic on this platform right now, based on what you actually found",
-  "painPoints": ["specific pain points people are voicing now", "..."],
-  "phrases": ["exact phrases/wording real people use", "..."],
-  "questions": ["top questions people are asking about this topic", "..."],
-  "angles": ["ad/creative angles that would resonate with this audience right now", "..."]
+  "stories": [
+    { "title": "the real title of the post/thread/article", "summary": "1-2 sentence gist of what it says or why it's relevant", "url": "the real URL to it, obeying the STRICT RULE above", "source": "e.g. r/AskWomen, Quora, or the site name" }
+  ]
 }
-Give 3-5 items per array. Be specific and current, grounded in what you actually found. If you found nothing substantive on this platform for this topic, return short or empty arrays rather than inventing content.`;
+Find up to 8 real candidates (a domain filter will keep only the valid ones, so extras help). Titles and URLs must be real results from your search, not fabricated. If you can't find 8 genuine on-platform results, return fewer rather than inventing any.`;
 
 interface GeminiPart { text?: string }
-interface GeminiChunk { web?: { uri?: string; title?: string } }
 interface GeminiResp {
-  candidates?: {
-    content?: { parts?: GeminiPart[] };
-    groundingMetadata?: { groundingChunks?: GeminiChunk[] };
-  }[];
+  candidates?: { content?: { parts?: GeminiPart[] } }[];
   error?: { message?: string };
 }
 
@@ -62,76 +63,78 @@ function parseJson(text: string): Record<string, unknown> | null {
   }
 }
 
-function strArr(v: unknown): string[] {
-  return Array.isArray(v) ? v.filter((x) => typeof x === "string").slice(0, 6) : [];
+function hostnameOf(url: string): string | null {
+  try {
+    return new URL(url).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
 }
 
-/** Fetch one platform's findings. Never throws — a failure here shouldn't sink the other two. */
-async function fetchPlatform(topic: string, platform: Platform, apiKey: string): Promise<PlatformFindings> {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(
-    apiKey
-  )}`;
+/** Enforce that a story's link actually opens on the platform it claims to be from. */
+const DOMAIN_OK: Record<Platform, (host: string) => boolean> = {
+  reddit: (h) => h === "redd.it" || h === "reddit.com" || h.endsWith(".reddit.com"),
+  quora: (h) => h === "quora.com" || h.endsWith(".quora.com"),
+  web: (h) => !(h === "redd.it" || h === "reddit.com" || h.endsWith(".reddit.com") || h === "quora.com" || h.endsWith(".quora.com")),
+};
+
+function toStories(v: unknown, platform: Platform): Story[] {
+  if (!Array.isArray(v)) return [];
+  return v
+    .filter((x): x is Record<string, unknown> => typeof x === "object" && x !== null)
+    .map((x) => ({
+      title: typeof x.title === "string" ? x.title : "",
+      summary: typeof x.summary === "string" ? x.summary : "",
+      url: typeof x.url === "string" ? x.url : "",
+      source: typeof x.source === "string" ? x.source : "",
+    }))
+    .filter((s) => s.title && s.url)
+    .filter((s) => {
+      const host = hostnameOf(s.url);
+      return host !== null && DOMAIN_OK[platform](host);
+    })
+    .slice(0, 5);
+}
+
+/**
+ * Top-5 real stories for a topic on one platform (Reddit / Quora / Web), via Gemini +
+ * Google Search grounding. Pass shuffle=true to nudge the model toward a fresh set.
+ * @param clientKey optional key from the browser's localStorage — takes priority over
+ *   the server's GEMINI_API_KEY when present.
+ */
+export async function fetchStories(topic: string, platform: Platform, clientKey?: string, shuffle = false): Promise<PlatformResult> {
+  const q = topic.trim();
+  if (!q) return emptyResult(q, platform, "unavailable", "Type a category to see top stories.");
+  const apiKey = clientKey || process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return emptyResult(
+      q,
+      platform,
+      "unavailable",
+      "Add a Gemini API key below (stored only in your browser) to see live stories."
+    );
+  }
+
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${encodeURIComponent(apiKey)}`;
   try {
     const res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: PROMPT(topic, platform) }] }],
+        contents: [{ parts: [{ text: PROMPT(q, platform, shuffle) }] }],
         tools: [{ google_search: {} }],
-        generationConfig: { temperature: 0.4 },
+        generationConfig: { temperature: shuffle ? 0.9 : 0.5 },
       }),
       cache: "no-store",
     });
     const json = (await res.json()) as GeminiResp;
     if (!res.ok || json.error) {
-      return emptyPlatform(`Gemini error: ${json.error?.message ?? res.status}`);
+      return emptyResult(q, platform, "error", `Gemini error: ${json.error?.message ?? res.status}`);
     }
-    const cand = json.candidates?.[0];
-    const text = (cand?.content?.parts ?? []).map((p) => p.text ?? "").join("");
+    const text = (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("");
     const data = parseJson(text) ?? {};
-    const sources: ResearchSource[] = (cand?.groundingMetadata?.groundingChunks ?? [])
-      .map((c) => ({ title: c.web?.title ?? "", url: c.web?.uri ?? "" }))
-      .filter((s) => s.url)
-      .slice(0, 6);
-
-    return {
-      summary: typeof data.summary === "string" ? data.summary : "",
-      painPoints: strArr(data.painPoints),
-      phrases: strArr(data.phrases),
-      questions: strArr(data.questions),
-      angles: strArr(data.angles),
-      sources,
-    };
+    return { source: "gemini", platform, topic: q, stories: toStories(data.stories, platform) };
   } catch (e) {
-    return emptyPlatform(e instanceof Error ? e.message : "Request failed");
-  }
-}
-
-/**
- * Realtime topic research via Gemini + Google Search grounding, split into Reddit / Quora / Web.
- * @param clientKey optional key supplied by the browser (stored in its own localStorage, sent as a
- *   per-request header) — takes priority over the server's GEMINI_API_KEY when present.
- */
-export async function researchTopic(topic: string, clientKey?: string): Promise<TopicResearch> {
-  const q = topic.trim();
-  if (!q) return emptyResult(q, "unavailable", "Type a category to research.");
-  const apiKey = clientKey || process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return emptyResult(
-      q,
-      "unavailable",
-      "Add a Gemini API key below (stored only in your browser) to enable live Reddit/Quora/web research."
-    );
-  }
-
-  try {
-    const [reddit, quora, web] = await Promise.all([
-      fetchPlatform(q, "reddit", apiKey),
-      fetchPlatform(q, "quora", apiKey),
-      fetchPlatform(q, "web", apiKey),
-    ]);
-    return { source: "gemini", topic: q, reddit, quora, web };
-  } catch (e) {
-    return emptyResult(q, "error", e instanceof Error ? e.message : "Research request failed");
+    return emptyResult(q, platform, "error", e instanceof Error ? e.message : "Request failed");
   }
 }

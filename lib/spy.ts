@@ -2,7 +2,7 @@ import type { CountItem, SpyAd, SpyResult } from "./types";
 import { daysBetween } from "./score";
 import { fetchCategoryAds, type RawSpyAd } from "./adlibrary";
 
-const SUGGESTIONS = ["ex back", "cheating", "divorce", "marriage", "soulmate", "astrology", "career", "skeptic"];
+export const SUGGESTIONS = ["ex back", "cheating", "divorce", "marriage", "soulmate", "astrology", "career", "skeptic"];
 
 function tally(values: string[]): CountItem[] {
   const m = new Map<string, number>();
@@ -24,6 +24,7 @@ function toAd(a: RawSpyAd): SpyAd {
     cta: a.cta,
     funnel: a.funnel,
     categories: a.categories,
+    mediaUrl: a.mediaUrl,
   };
 }
 

@@ -12,6 +12,8 @@ export interface RawSpyAd {
   angle: string;
   categories: string[];
   body?: string;
+  /** direct video/image file when the provider exposes one (real Ad Library CDN URL) */
+  mediaUrl?: string;
 }
 
 export interface LiveFetch {
@@ -81,8 +83,8 @@ interface ScrapeCreatorsAd {
     page_name?: string;
     cta_text?: string;
     body?: { text?: string };
-    videos?: unknown[];
-    images?: unknown[];
+    videos?: { video_hd_url?: string; video_sd_url?: string }[];
+    images?: { original_image_url?: string; resized_image_url?: string }[];
     cards?: unknown[];
   };
 }
@@ -132,6 +134,12 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
           : new Date(now).toISOString().slice(0, 10);
         const media: RawSpyAd["mediaType"] =
           snap.videos && snap.videos.length ? "video" : snap.cards && snap.cards.length > 1 ? "carousel" : "image";
+        const mediaUrl =
+          snap.videos?.[0]?.video_hd_url ||
+          snap.videos?.[0]?.video_sd_url ||
+          snap.images?.[0]?.original_image_url ||
+          snap.images?.[0]?.resized_image_url ||
+          undefined;
         return {
           brand: r.page_name ?? snap.page_name ?? "Unknown",
           libraryId: String(r.ad_archive_id ?? r.ad_id ?? ""),
@@ -144,6 +152,7 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
           angle: c.angle,
           categories: c.categories,
           body: text,
+          mediaUrl,
         };
       })
       .filter((a) => a.libraryId);

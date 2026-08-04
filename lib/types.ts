@@ -56,6 +56,8 @@ export interface BrandAd {
   durationSec?: number;
   hook: string;
   snapshotUrl: string;
+  /** direct media file when we have one; otherwise the download button falls back to snapshotUrl */
+  mediaUrl?: string;
 }
 
 export interface BrandCard {
@@ -92,6 +94,7 @@ export interface SpyAd {
   cta: string;
   funnel: string;
   categories: string[];
+  mediaUrl?: string;
 }
 
 export interface SpyResult {
@@ -120,31 +123,24 @@ export interface CountItem {
 }
 
 // Live trend research (Gemini + Google Search grounding) --------------------
-// Split per-platform so Reddit / Quora / general-web findings are genuinely
-// distinct rather than one blended summary.
+// Reddit, Quora, and Web each get their own tab. Each shows the top 5 real
+// stories/threads for the searched keyword, reshufflable via a fresh live fetch.
 
-export interface ResearchSource {
+export type Platform = "reddit" | "quora" | "web";
+
+export interface Story {
   title: string;
-  url: string;
+  summary: string; // 1-2 sentence gist of the story/thread
+  url: string; // may be empty if the model couldn't attach a real link
+  source: string; // e.g. "r/AskWomen", "Quora", or a site name
 }
 
-export interface PlatformFindings {
-  summary: string;
-  painPoints: string[];
-  phrases: string[]; // exact language people use on this platform
-  questions: string[]; // top questions people ask
-  angles: string[]; // ad angles that would resonate now
-  sources: ResearchSource[];
-  note?: string; // per-platform error/empty note
-}
-
-export interface TopicResearch {
+export interface PlatformResult {
   source: "gemini" | "unavailable" | "error";
+  platform: Platform;
   topic: string;
-  reddit: PlatformFindings;
-  quora: PlatformFindings;
-  web: PlatformFindings;
-  note?: string; // top-level note (e.g. "set GEMINI_API_KEY")
+  stories: Story[]; // top 5
+  note?: string;
 }
 
 // Universal saved-ads swipe file ---------------------------------------------
@@ -158,4 +154,5 @@ export interface SavedAd {
   snapshotUrl: string;
   startDate: string;
   origin: "astrology-brands" | "competitor-spy";
+  mediaUrl?: string;
 }

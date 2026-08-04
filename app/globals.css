@@ -292,28 +292,23 @@ button.btn.on { background: var(--accent); color: #06121f; border-color: var(--a
 .lead-bar { grid-column: 1 / -1; height: 6px; background: var(--panel-2); border-radius: 999px; overflow: hidden; margin-top: -3px; }
 .lead-bar > div { height: 100%; background: linear-gradient(90deg, var(--accent), #9d7bff); }
 
-/* Live research panel (3 platform sections) */
-.research { margin: 12px 0 18px; }
-.research .rhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
-.research h3 { margin: 0; font-size: 15px; }
-.research .live-dot { font-size: 11px; color: var(--good); }
-.research .rnote-wrap { background: linear-gradient(135deg, rgba(53,201,139,.07), rgba(110,168,254,.07)); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; }
-.research .rnote { font-size: 13px; color: var(--muted); line-height: 1.5; }
-.research .rnote code { background: var(--panel-2); padding: 1px 6px; border-radius: 6px; }
+/* Top-5 reshufflable stories (Reddit / Quora / Web tabs) */
+.story-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.story-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; display: flex; gap: 14px; align-items: flex-start; }
+.story-rank { flex: 0 0 auto; width: 28px; height: 28px; border-radius: 50%; background: var(--panel-2); border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--muted); }
+.story-body { min-width: 0; }
+.story-title { display: block; font-size: 14px; font-weight: 650; color: var(--accent); text-decoration: none; line-height: 1.4; }
+.story-title:hover { text-decoration: underline; }
+.story-title.plain { color: #eef2fa; cursor: default; }
+.story-sum { font-size: 13px; color: #cdd4e3; line-height: 1.5; margin-top: 5px; }
+.story-src { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
-.research3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 900px) { .research3 { grid-template-columns: 1fr; } }
-.rcard { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 15px 17px; display: flex; flex-direction: column; }
-.rcard .rtitle { display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 13.5px; margin-bottom: 9px; }
-.rcard .rsum { font-size: 12.5px; line-height: 1.55; color: #d7dde8; margin-bottom: 8px; }
-.rcard h6 { margin: 10px 0 5px; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
-.rcard ul { margin: 0; padding-left: 15px; }
-.rcard li { font-size: 12px; line-height: 1.5; margin-bottom: 4px; color: #d4dae8; }
-.rcard .phrase li { font-style: italic; color: #cbe6d8; }
-.rcard .rempty { font-size: 12px; color: var(--muted); font-style: italic; }
-.rcard .rsrc { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 6px; }
-.rcard .rsrc a { font-size: 10px; color: var(--accent); text-decoration: none; background: var(--panel-2); border: 1px solid var(--border); border-radius: 999px; padding: 3px 8px; max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.rcard .rsrc a:hover { border-color: var(--accent); }
+/* Download button */
+.dl-btn { background: transparent; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); padding: 4px 9px; font-size: 11px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.dl-btn:hover { border-color: var(--accent); color: var(--text); }
+.tile-actions { display: flex; align-items: center; gap: 6px; }
+.dl-icon { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 6px; border: 1px solid var(--border); color: var(--muted); text-decoration: none; font-size: 11px; }
+.dl-icon:hover { border-color: var(--accent); color: var(--text); }
 
 /* Sync bar + save */
 .syncbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 14px; margin: 8px 0 12px; font-size: 12px; }

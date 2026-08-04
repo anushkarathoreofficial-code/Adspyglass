@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { BrandsData, PlatformFindings, SavedAd, SpyResult, TopicResearch } from "@/lib/types";
+import type { BrandsData, Platform, PlatformResult, SavedAd, SpyResult } from "@/lib/types";
 
-type Tab = "persona" | "competitors";
+type Tab = "persona" | "competitors" | "reddit" | "quora" | "web";
+
+const CATEGORY_CHIPS = ["ex back", "cheating", "divorce", "marriage", "soulmate", "astrology", "career", "skeptic"];
 
 // ---------- universal saved-ads swipe file ----------
 function useSavedAds() {
@@ -64,7 +66,7 @@ function GeminiKeyBar({ savedKey, onSave }: { savedKey: string; onSave: (key: st
       className="keybar"
       onSubmit={(e) => { e.preventDefault(); onSave(input.trim()); setEditing(false); }}
     >
-      <span className="k-label">🔑 Gemini key (stored only in this browser, sent only with your research requests):</span>
+      <span className="k-label">🔑 Gemini key (stored only in this browser):</span>
       <input
         type="password"
         value={input}
@@ -75,6 +77,26 @@ function GeminiKeyBar({ savedKey, onSave }: { savedKey: string; onSave: (key: st
       <button type="submit" disabled={!input.trim()}>Save</button>
       {savedKey && <button type="button" className="k-link" onClick={() => setEditing(false)}>Cancel</button>}
     </form>
+  );
+}
+
+function downloadHref(mediaUrl: string | undefined, snapshotUrl: string): string {
+  return mediaUrl || snapshotUrl;
+}
+
+function DownloadLink({ mediaUrl, snapshotUrl }: { mediaUrl?: string; snapshotUrl: string }) {
+  const href = downloadHref(mediaUrl, snapshotUrl);
+  return (
+    <a
+      className="dl-btn"
+      href={href}
+      download
+      target="_blank"
+      rel="noreferrer"
+      title={mediaUrl ? "Download the ad creative" : "No direct file available — opens the Ad Library page"}
+    >
+      ⬇ Download
+    </a>
   );
 }
 
@@ -91,6 +113,7 @@ function SavedAdCard({ ad, onUnsave }: { ad: SavedAd; onUnsave: () => void }) {
       </div>
       <div className="actions">
         <button className="save-btn saved" onClick={onUnsave}>★ Unsave</button>
+        <DownloadLink mediaUrl={ad.mediaUrl} snapshotUrl={ad.snapshotUrl} />
         <a className="plink" href={ad.snapshotUrl} target="_blank" rel="noreferrer">▶ Open →</a>
       </div>
     </div>
@@ -125,7 +148,7 @@ function LeaderPanel({ title, items }: { title: string; items: SpyResult["angleL
 }
 
 function spyAdToSaved(a: SpyResult["ads"][number]): SavedAd {
-  return { libraryId: a.libraryId, brand: a.brand, hook: a.hook, snapshotUrl: a.snapshotUrl, startDate: a.startDate, origin: "competitor-spy" };
+  return { libraryId: a.libraryId, brand: a.brand, hook: a.hook, snapshotUrl: a.snapshotUrl, startDate: a.startDate, origin: "competitor-spy", mediaUrl: a.mediaUrl };
 }
 
 function SpyAdRow({ a, oldest, saved, onToggleSave }: { a: SpyResult["ads"][number]; oldest: boolean; saved: boolean; onToggleSave: () => void }) {
@@ -146,6 +169,7 @@ function SpyAdRow({ a, oldest, saved, onToggleSave }: { a: SpyResult["ads"][numb
         <span className="cats">{a.categories.slice(0, 4).join(" · ")}</span>
         <span className="fr">
           <button className={`save-btn ${saved ? "saved" : ""}`} onClick={onToggleSave}>{saved ? "★ Saved" : "☆ Save"}</button>
+          <DownloadLink mediaUrl={a.mediaUrl} snapshotUrl={a.snapshotUrl} />
           <a className="plink" href={a.snapshotUrl} target="_blank" rel="noreferrer">▶ Play / open →</a>
         </span>
       </div>
@@ -170,76 +194,6 @@ function untilTime(iso: string): string {
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
-// ---------- live trend research: Reddit · Quora · Web ----------
-const PLATFORM_META = {
-  reddit: { icon: "👽", label: "Reddit" },
-  quora: { icon: "❓", label: "Quora" },
-  web: { icon: "🌐", label: "Web" },
-} as const;
-
-function PlatformCard({ platform, data }: { platform: keyof typeof PLATFORM_META; data: PlatformFindings }) {
-  const meta = PLATFORM_META[platform];
-  const groups: { title: string; items: string[]; cls?: string }[] = [
-    { title: "Pain points", items: data.painPoints },
-    { title: "Real phrases", items: data.phrases, cls: "phrase" },
-    { title: "Top questions", items: data.questions },
-    { title: "Angles to try", items: data.angles },
-  ];
-  const isEmpty = !data.summary && groups.every((g) => g.items.length === 0);
-  return (
-    <div className="rcard">
-      <div className="rtitle">{meta.icon} {meta.label}</div>
-      {data.note && <div className="rempty">{data.note}</div>}
-      {data.summary && <div className="rsum">{data.summary}</div>}
-      {isEmpty && !data.note && <div className="rempty">No findings for this platform.</div>}
-      {groups.map((g) => g.items.length > 0 && (
-        <div key={g.title}>
-          <h6>{g.title}</h6>
-          <ul className={g.cls}>{g.items.map((x, i) => <li key={i}>{x}</li>)}</ul>
-        </div>
-      ))}
-      {data.sources.length > 0 && (
-        <div className="rsrc">
-          {data.sources.map((s, i) => <a key={i} href={s.url} target="_blank" rel="noreferrer">🔗 {s.title || new URL(s.url).hostname}</a>)}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ResearchPanel({ r, loading }: { r: TopicResearch | null; loading: boolean }) {
-  if (loading) {
-    return (
-      <div className="research">
-        <div className="rhead"><h3>Live trend research</h3></div>
-        <div className="rnote-wrap"><div className="rnote">Researching Reddit, Quora, and the web right now…</div></div>
-      </div>
-    );
-  }
-  if (!r) return null;
-  if (r.source !== "gemini") {
-    return (
-      <div className="research">
-        <div className="rhead"><h3>Live trend research</h3></div>
-        <div className="rnote-wrap"><div className="rnote">{r.note}</div></div>
-      </div>
-    );
-  }
-  return (
-    <div className="research">
-      <div className="rhead">
-        <h3>Live trend research</h3>
-        <span className="live-dot">● live · &ldquo;{r.topic}&rdquo;</span>
-      </div>
-      <div className="research3">
-        <PlatformCard platform="reddit" data={r.reddit} />
-        <PlatformCard platform="quora" data={r.quora} />
-        <PlatformCard platform="web" data={r.web} />
-      </div>
-    </div>
-  );
-}
-
 const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
 
 function SpyTab() {
@@ -247,41 +201,14 @@ function SpyTab() {
   const [data, setData] = useState<SpyResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [research, setResearch] = useState<TopicResearch | null>(null);
-  const [researching, setResearching] = useState(false);
   const [view, setView] = useState<"search" | "saved">("search");
   const queryRef = useRef("");
   const { saved, isSaved, toggle } = useSavedAds();
-  const { key: geminiKey, setKey: setGeminiKey } = useLocalGeminiKey();
-
-  const runResearch = useCallback(async (query: string, keyOverride?: string) => {
-    if (!query.trim()) { setResearch(null); return; }
-    setResearching(true);
-    setResearch(null);
-    try {
-      const activeKey = keyOverride ?? geminiKey;
-      const res = await fetch(`/api/research?q=${encodeURIComponent(query)}&t=${Date.now()}`, {
-        cache: "no-store",
-        headers: activeKey ? { "x-gemini-api-key": activeKey } : undefined,
-      });
-      setResearch(await res.json());
-    } catch (e) {
-      const note = e instanceof Error ? e.message : "Research failed";
-      const empty = { summary: "", painPoints: [], phrases: [], questions: [], angles: [], sources: [] };
-      setResearch({ source: "error", topic: query, reddit: empty, quora: empty, web: empty, note });
-    } finally { setResearching(false); }
-  }, [geminiKey]);
-
-  const saveGeminiKey = (next: string) => {
-    setGeminiKey(next);
-    if (queryRef.current) runResearch(queryRef.current, next);
-  };
 
   const run = useCallback(async (query: string, force = false) => {
     queryRef.current = query;
     setLoading(true);
     setError(null);
-    runResearch(query); // fire in parallel; research is slower than the ad search
     try {
       const res = await fetch(`/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}&t=${Date.now()}`, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -289,7 +216,7 @@ function SpyTab() {
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally { setLoading(false); }
-  }, [runResearch]);
+  }, []);
   useEffect(() => { run("astrology"); }, [run]); // load a live category on open
 
   // auto-sync every 7h with fresh ads (while the tab is open)
@@ -303,7 +230,7 @@ function SpyTab() {
   return (
     <>
       <div className="banner live">
-        <b>Competitor spy.</b> Search a category (divorce, ex back, marriage, cheating, astrology…) — get <b>live trends</b> from Reddit, Quora, and the web as three separate sections, <i>plus</i> the real ads brands are running for it (hooks, angles, formats, funnels).
+        <b>Competitor spy.</b> Search a category (divorce, ex back, marriage, cheating, astrology…) to see the real ads brands are running for it — hooks, angles, formats, funnels, ranked oldest-first (proven winners on top).
       </div>
 
       {data && (
@@ -342,9 +269,6 @@ function SpyTab() {
               ))}
             </div>
           )}
-
-          <GeminiKeyBar savedKey={geminiKey} onSave={saveGeminiKey} />
-          {(researching || research) && <ResearchPanel r={research} loading={researching} />}
 
           {loading && <div className="loading">Searching ads…</div>}
           {error && <div className="error">⚠️ {error}</div>}
@@ -393,7 +317,7 @@ const PlayIcon = () => (
 );
 
 function brandAdToSaved(brand: string, ad: BrandsData["brands"][number]["ads"][number]): SavedAd {
-  return { libraryId: ad.libraryId, brand, hook: ad.hook, snapshotUrl: ad.snapshotUrl, startDate: ad.startDate, origin: "astrology-brands" };
+  return { libraryId: ad.libraryId, brand, hook: ad.hook, snapshotUrl: ad.snapshotUrl, startDate: ad.startDate, origin: "astrology-brands", mediaUrl: ad.mediaUrl };
 }
 
 function AdTile({
@@ -419,7 +343,10 @@ function AdTile({
       <div className="hook">{ad.hook}</div>
       <div className="tile-foot">
         <span className="started">Started {ad.startDate}</span>
-        <button className={`save-btn ${saved ? "saved" : ""}`} onClick={onToggleSave} title={saved ? "Unsave" : "Save"}>{saved ? "★" : "☆"}</button>
+        <span className="tile-actions">
+          <a className="dl-icon" href={downloadHref(ad.mediaUrl, ad.snapshotUrl)} download target="_blank" rel="noreferrer" title="Download">⬇</a>
+          <button className={`save-btn ${saved ? "saved" : ""}`} onClick={onToggleSave} title={saved ? "Unsave" : "Save"}>{saved ? "★" : "☆"}</button>
+        </span>
       </div>
     </div>
   );
@@ -508,7 +435,127 @@ function BrandRadarTab() {
   );
 }
 
+// ---------- Reddit / Quora / Web: top-5 reshufflable stories ----------
+const PLATFORM_META: Record<Platform, { icon: string; label: string; hint: string }> = {
+  reddit: { icon: "👽", label: "Reddit", hint: "real Reddit threads and comments" },
+  quora: { icon: "❓", label: "Quora", hint: "real Quora questions and answers" },
+  web: { icon: "🌐", label: "the web", hint: "news, blogs, and articles" },
+};
+
+function StoryCard({ story, rank }: { story: PlatformResult["stories"][number]; rank: number }) {
+  return (
+    <div className="story-card">
+      <div className="story-rank">#{rank}</div>
+      <div className="story-body">
+        {story.url ? (
+          <a className="story-title" href={story.url} target="_blank" rel="noreferrer">{story.title}</a>
+        ) : (
+          <div className="story-title plain">{story.title}</div>
+        )}
+        {story.summary && <div className="story-sum">{story.summary}</div>}
+        {story.source && <div className="story-src">{story.source}</div>}
+      </div>
+    </div>
+  );
+}
+
+function PlatformTab({ platform }: { platform: Platform }) {
+  const meta = PLATFORM_META[platform];
+  const [input, setInput] = useState("");
+  const [query, setQuery] = useState("");
+  const [data, setData] = useState<PlatformResult | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const { key: geminiKey, setKey: setGeminiKey } = useLocalGeminiKey();
+
+  const run = useCallback(async (q: string, shuffle = false, keyOverride?: string) => {
+    if (!q.trim()) return;
+    setQuery(q);
+    setLoading(true);
+    setError(null);
+    try {
+      const activeKey = keyOverride ?? geminiKey;
+      const res = await fetch(`/api/research?platform=${platform}&q=${encodeURIComponent(q)}${shuffle ? "&shuffle=1" : ""}&t=${Date.now()}`, {
+        cache: "no-store",
+        headers: activeKey ? { "x-gemini-api-key": activeKey } : undefined,
+      });
+      setData(await res.json());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally { setLoading(false); }
+  }, [platform, geminiKey]);
+
+  const saveGeminiKey = (next: string) => {
+    setGeminiKey(next);
+    if (query) run(query, false, next);
+  };
+
+  const search = (q: string) => { setInput(q); run(q); };
+
+  return (
+    <>
+      <div className="banner live">
+        <b>{meta.icon} {meta.label} stories.</b> Search a keyword to see the top 5 real, current stories about it from {meta.hint} — click 🔀 Reshuffle anytime for a fresh set.
+      </div>
+
+      <GeminiKeyBar savedKey={geminiKey} onSave={saveGeminiKey} />
+
+      <form className="spy-search" onSubmit={(e) => { e.preventDefault(); run(input); }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder={`Search a keyword — e.g. divorce, ex back, marriage, cheating…`}
+        />
+        <button type="submit">Search</button>
+      </form>
+
+      <div className="chips" style={{ marginBottom: 4 }}>
+        {CATEGORY_CHIPS.map((s) => (
+          <button key={s} className={`chip ${query === s ? "active" : ""}`} onClick={() => search(s)}>{s}</button>
+        ))}
+      </div>
+
+      {loading && <div className="loading">Finding top stories…</div>}
+      {error && <div className="error">⚠️ {error}</div>}
+
+      {data && !loading && (
+        <>
+          {data.source !== "gemini" ? (
+            <div className="excluded-note">{data.note}</div>
+          ) : (
+            <>
+              <div className="spy-count" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Top {data.stories.length || 0} stories for &ldquo;<b>{data.topic}</b>&rdquo; on {meta.label}</span>
+                <button className="btn" onClick={() => run(data.topic, true)} disabled={loading}>🔀 Reshuffle</button>
+              </div>
+              {data.stories.length === 0 ? (
+                <div className="excluded-note">No stories found for &ldquo;{data.topic}&rdquo; on {meta.label}. Try Reshuffle or a different keyword.</div>
+              ) : (
+                <div className="story-list">
+                  {data.stories.map((s, i) => <StoryCard key={i} story={s} rank={i + 1} />)}
+                </div>
+              )}
+            </>
+          )}
+        </>
+      )}
+
+      {!data && !loading && (
+        <div className="excluded-note">Search a keyword above (or tap a chip) to see the top 5 {meta.label} stories.</div>
+      )}
+    </>
+  );
+}
+
 // ---------- shell ----------
+const TABS: { id: Tab; label: string }[] = [
+  { id: "persona", label: "🔮 Astrology brands" },
+  { id: "competitors", label: "🔎 Competitor spy" },
+  { id: "reddit", label: "👽 Reddit" },
+  { id: "quora", label: "❓ Quora" },
+  { id: "web", label: "🌐 Web" },
+];
+
 export default function Dashboard() {
   const [tab, setTab] = useState<Tab>("persona");
   return (
@@ -521,15 +568,19 @@ export default function Dashboard() {
       </header>
 
       <div className="tabs">
-        <button className={tab === "persona" ? "active" : ""} onClick={() => setTab("persona")}>🔮 Astrology brands</button>
-        <button className={tab === "competitors" ? "active" : ""} onClick={() => setTab("competitors")}>🔎 Competitor spy</button>
+        {TABS.map((t) => (
+          <button key={t.id} className={tab === t.id ? "active" : ""} onClick={() => setTab(t.id)}>{t.label}</button>
+        ))}
       </div>
 
       {tab === "persona" && <BrandRadarTab />}
       {tab === "competitors" && <SpyTab />}
+      {tab === "reddit" && <PlatformTab platform="reddit" />}
+      {tab === "quora" && <PlatformTab platform="quora" />}
+      {tab === "web" && <PlatformTab platform="web" />}
 
       <div className="footnote">
-        <b>Astrology brands:</b> brand identity + ads oldest-first, shuffle for a new set. <b>Competitor spy:</b> live Reddit / Quora / Web trend research (Gemini) + real ads by category. Save any ad (☆) — your swipe file is shared across both tabs.
+        <b>Astrology brands</b> and <b>Competitor spy</b> show real ads (☆ save, ⬇ download on every ad). <b>Reddit / Quora / Web</b> each show the top 5 live stories for your keyword — 🔀 Reshuffle for a new set anytime.
       </div>
     </div>
   );

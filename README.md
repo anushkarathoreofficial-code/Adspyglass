@@ -1,23 +1,28 @@
 # Astro Marketing Intelligence
 
 A Next.js dashboard for researching the **US astrology/psychic ad landscape** — competitor creative
-and live market trends. It only ever looks at *other* advertisers; it has no access to and shows
-nothing about your own ad accounts.
+and live market demand, split into five focused tabs. It only ever looks at *other* advertisers; it
+has no access to and shows nothing about your own ad accounts.
 
 **Live at:** https://adspyglass.vercel.app
 
 | Tab | What it shows | Source | Key needed |
 |---|---|---|---|
-| **🔮 Astrology brands** | Brand identity cards (site, tagline, positioning) + their ads oldest-first, playable, shuffleable, saveable | Harvested US Ad Library ads | none |
-| **🔎 Competitor spy** | Real-time ad search by category (hook/angle/format/funnel/CTA) + live trend research split into **Reddit / Quora / Web** sections + a saveable swipe file | **Live**: ScrapeCreators (ads) + Gemini (research) | see below |
+| **🔮 Astrology brands** | Brand identity cards (site, tagline, positioning) + their ads oldest-first, playable, shuffleable, saveable, downloadable | Harvested US Ad Library ads | none |
+| **🔎 Competitor spy** | Real-time ad search by category (hook/angle/format/funnel/CTA), oldest-first ranking, leaderboards | **Live**: ScrapeCreators | see below |
+| **👽 Reddit** | Top 5 real, current Reddit stories for your keyword, reshufflable | **Live**: Gemini + Search grounding | see below |
+| **❓ Quora** | Top 5 real, current Quora stories for your keyword, reshufflable | **Live**: Gemini + Search grounding | see below |
+| **🌐 Web** | Top 5 real, current web stories (news/blogs) for your keyword, reshufflable | **Live**: Gemini + Search grounding | see below |
 
 Astrology brands works out of the box with **zero credentials** (real harvested ads). Competitor
-spy falls back to a harvested corpus for ads and prompts for a key for research. Add the two
-optional keys below to make it fully live.
+spy falls back to a harvested corpus without a key. The three story tabs need a Gemini key — add it
+once via the in-app key bar (see below) and all three go live immediately.
 
-Every ad card in both tabs has a **☆ Save** toggle. Saved ads land in one shared **⭐ Saved** swipe
-file (stored in your browser via `localStorage`) — visible from either tab, tagged with which tab
-it came from.
+Every **ad** card (Astrology brands + Competitor spy) has a **☆ Save** toggle and a **⬇ Download**
+button. Saved ads land in one shared **⭐ Saved** swipe file (`localStorage`), tagged with which tab
+it came from. Download links to the real Ad Library media file (video/image) when the provider
+exposes one, falling back to the Ad Library page otherwise — browsers may open the file rather than
+force-download it, depending on CORS.
 
 ## Quick start
 
@@ -27,31 +32,35 @@ npm run dev
 # open http://localhost:3000
 ```
 
-## Making Competitor spy live
+## Going live
 
-```bash
-cp .env.example .env.local
-```
+**Competitor spy** — `SCRAPECREATORS_API_KEY` in `.env.local` (scrapecreators.com). Meta's own API
+doesn't return ordinary US commercial ads (see caveat below), so this is a third-party provider.
+Results auto-sync every 7h; a **Sync now** button forces a fresh pull.
 
-- **`SCRAPECREATORS_API_KEY`** — real-time Ad Library search (scrapecreators.com). Meta's own API
-  doesn't return ordinary US commercial ads (see caveat below), so this is a third-party provider.
-  Results auto-sync every 7h; a **Sync now** button forces a fresh pull.
-- **`GEMINI_API_KEY`** — powers the "Live trend research" panel. Runs **three parallel searches**
-  (Reddit-scoped, Quora-scoped, general web) via Google Search grounding, so each platform's column
-  shows genuinely distinct findings rather than one blended summary. Free key at
-  aistudio.google.com/apikey. Optional `GEMINI_MODEL` override.
+**Reddit / Quora / Web** — a **Gemini API key**, entered directly in the app:
+1. Open any of the three story tabs.
+2. Paste your key into the **🔑 Gemini key** bar at the top (free key at aistudio.google.com/apikey).
+3. It's saved to your browser's `localStorage` and sent only as a request header to this app's own
+   API route — never written to a file, never committed, never shared across browsers/devices.
 
-Without these, Competitor spy runs on a harvested corpus and each research column prompts for the key.
+No `GEMINI_API_KEY` env var is required — the key bar is the intended way to configure this. (A
+server-side `GEMINI_API_KEY`/`GEMINI_MODEL` in `.env.local` still works as a fallback for anyone who
+prefers that route.)
 
 ## Features
 
+- **Top-5 reshufflable stories** — each of Reddit/Quora/Web independently searches a keyword and
+  returns 5 real, current stories (title, gist, link, source). **🔀 Reshuffle** re-runs the search
+  live with a higher-temperature, anti-repeat prompt so you get a genuinely different set, not a
+  client-side reshuffle of the same handful (`lib/research.ts`).
+- **Domain-locked links** — every story's link is validated server-side to actually resolve to the
+  tab's platform (reddit.com/redd.it for Reddit, quora.com for Quora; Web excludes both). Off-domain
+  or lookalike links (e.g. an article merely discussing Reddit) are dropped rather than shown.
 - **Live category search** — hook/angle/format/funnel/CTA auto-labelled, oldest-first ranking,
   leaderboards per dimension (`lib/spy.ts`, `lib/adlibrary.ts`).
-- **3-way live trend research** — Reddit, Quora, and Web researched independently per category, each
-  with its own summary, pain points, real phrases, top questions, and resonant angles + sources
-  (`lib/research.ts`).
-- **Universal save** — ☆/★ toggle on every ad card in every tab, one shared swipe file
-  (`localStorage`, nothing server-side).
+- **Universal save + download** — every ad card in every ad-bearing tab has ☆ Save and ⬇ Download.
+  Save uses one shared swipe file (`localStorage`, nothing server-side).
 - **Scalability signal** — longevity-dominant (oldest still-active creative = proven winner). See
   `lib/score.ts`.
 - **Shuffle** — Astrology brands resamples a fresh set of brands + ads on demand.
@@ -63,8 +72,8 @@ config/astrology-brands.json   harvested astrology/psychic brands (identity + ad
 config/us-seed-ads.json        harvested ads for persona-fit scoring (unused by current tabs)
 config/spy-corpus.json         harvested corpus fallback for Competitor spy
 
-lib/adlibrary.ts     live Ad Library fetch (ScrapeCreators) + 7h cache + corpus fallback
-lib/research.ts      live Reddit / Quora / Web trend research (Gemini + Search grounding)
+lib/adlibrary.ts     live Ad Library fetch (ScrapeCreators) + 7h cache + corpus fallback + media URLs
+lib/research.ts      top-5 story fetch per platform (Gemini + Search grounding), with shuffle nudge
 lib/spy.ts           category search + hook/angle/format/funnel/CTA aggregation
 lib/brands.ts        brand-radar loader (identity cards + ads oldest-first, shuffle)
 lib/persona.ts       persona-fit scoring engine (used by the orphaned /api/persona endpoint)
