@@ -38,5 +38,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     authorized({ auth }) {
       return !!auth?.user;
     },
+    // Never redirect off our own origin (prevents post-login bounces to localhost).
+    redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        if (new URL(url).origin === baseUrl) return url;
+      } catch {
+        /* fall through */
+      }
+      return baseUrl;
+    },
   },
 });
