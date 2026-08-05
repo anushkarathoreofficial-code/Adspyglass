@@ -17,5 +17,6 @@ export async function GET(req: Request) {
   const q = sp.get("q") ?? "";
   const force = sp.get("sync") === "1";
   const cursor = sp.get("cursor") || undefined;
-  return NextResponse.json(await spySearch(q, force, cursor));
+  const country = sp.get("country") || "US";
+  return NextResponse.json(await spySearch(q, force, cursor, country));
 }

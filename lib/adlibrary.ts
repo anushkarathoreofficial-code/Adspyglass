@@ -116,8 +116,9 @@ interface ScrapeCreatorsAd {
  * Falls back to the harvested corpus when no provider key is set.
  * Results are cached for 7h per category (the auto-sync window); pass force to bypass.
  */
-export async function fetchCategoryAds(query: string, force = false, cursor?: string): Promise<LiveFetch> {
-  const key = `${query.trim().toLowerCase() || "__all__"}::${cursor || "0"}`;
+export async function fetchCategoryAds(query: string, force = false, cursor?: string, country = "US"): Promise<LiveFetch> {
+  const cc = (country || "US").toUpperCase();
+  const key = `${cc}::${query.trim().toLowerCase() || "__all__"}::${cursor || "0"}`;
   const now = Date.now();
 
   if (!hasProvider()) {
@@ -137,7 +138,7 @@ export async function fetchCategoryAds(query: string, force = false, cursor?: st
   }
 
   try {
-    const url = `https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?query=${encodeURIComponent(query)}&country=US${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
+    const url = `https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?query=${encodeURIComponent(query)}&country=${encodeURIComponent(cc)}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
     const res = await fetch(url, {
       headers: { "x-api-key": process.env.SCRAPECREATORS_API_KEY! },
       cache: "no-store",

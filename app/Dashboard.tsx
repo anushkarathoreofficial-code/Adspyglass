@@ -8,6 +8,21 @@ type Tab = "persona" | "competitors" | "reddit" | "quora" | "web";
 
 const CATEGORY_CHIPS = ["ex back", "cheating", "divorce", "marriage", "soulmate", "astrology", "career", "skeptic"];
 
+const COUNTRIES: { code: string; label: string }[] = [
+  { code: "US", label: "🇺🇸 United States" },
+  { code: "IN", label: "🇮🇳 India" },
+  { code: "DE", label: "🇩🇪 Germany" },
+  { code: "GB", label: "🇬🇧 United Kingdom" },
+  { code: "FR", label: "🇫🇷 France" },
+  { code: "ES", label: "🇪🇸 Spain" },
+  { code: "IT", label: "🇮🇹 Italy" },
+  { code: "BR", label: "🇧🇷 Brazil" },
+  { code: "MX", label: "🇲🇽 Mexico" },
+  { code: "CA", label: "🇨🇦 Canada" },
+  { code: "AU", label: "🇦🇺 Australia" },
+  { code: "AE", label: "🇦🇪 UAE" },
+];
+
 // ---------- universal saved-ads swipe file ----------
 function useSavedAds() {
   const [saved, setSaved] = useState<SavedAd[]>([]);
@@ -152,14 +167,16 @@ function spyAdToSaved(a: SpyResult["ads"][number]): SavedAd {
   return { libraryId: a.libraryId, brand: a.brand, hook: a.hook, snapshotUrl: a.snapshotUrl, startDate: a.startDate, origin: "competitor-spy", mediaUrl: a.mediaUrl };
 }
 
-function SpyAdRow({ a, oldest, saved, onToggleSave }: { a: SpyResult["ads"][number]; oldest: boolean; saved: boolean; onToggleSave: () => void }) {
+function SpyAdRow({ a, oldest, saved, onToggleSave, translated }: { a: SpyResult["ads"][number]; oldest: boolean; saved: boolean; onToggleSave: () => void; translated?: string }) {
+  const showTranslation = translated && translated.trim() && translated.trim() !== a.hook.trim();
   return (
     <div className="spy-ad">
       <div className="r1">
         <span className="brand">{a.brand}</span>
         <span className="age">{oldest ? "★ longest-running · " : ""}{a.daysActive}d active</span>
       </div>
-      <div className="hook">&ldquo;{a.hook}&rdquo;</div>
+      <div className="hook">&ldquo;{showTranslation ? translated : a.hook}&rdquo;</div>
+      {showTranslation && <div className="orig-hook">original: {a.hook}</div>}
       <div className="spy-labels">
         <div><div className="k">Angle</div>{a.angle}</div>
         <div><div className="k">Format</div>{a.format}</div>
@@ -194,8 +211,12 @@ function SpyTab() {
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"search" | "saved">("search");
   const [shuffleSeed, setShuffleSeed] = useState(0);
+  const [country, setCountry] = useState("US");
+  const [translateOn, setTranslateOn] = useState(false);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   const queryRef = useRef("");
   const cursorRef = useRef<string | undefined>(undefined); // next-page cursor for Shuffle
+  const countryRef = useRef("US");
   const { saved, isSaved, toggle } = useSavedAds();
 
   // doShuffle=true → page forward into the category (next batch of real ads) + shuffled order.
@@ -208,7 +229,7 @@ function SpyTab() {
     if (!doShuffle) cursorRef.current = undefined; // new search → back to page 1
     try {
       const res = await fetch(
-        `/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&t=${Date.now()}`,
+        `/api/spy?q=${encodeURIComponent(query)}&country=${countryRef.current}${force ? "&sync=1" : ""}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&t=${Date.now()}`,
         { cache: "no-store" }
       );
       if (res.status === 429) {
@@ -226,6 +247,33 @@ function SpyTab() {
   useEffect(() => { run("astrology"); }, [run]); // load a live category on open (no auto-sync after)
 
   const search = (query: string) => { setInput(query); setView("search"); run(query); };
+  const changeCountry = (cc: string) => { setCountry(cc); countryRef.current = cc; run(queryRef.current || "astrology"); };
+
+  // Translate visible ad hooks to English when the toggle is on.
+  useEffect(() => {
+    if (!translateOn || !data || data.ads.length === 0) return;
+    const missing = data.ads.filter((a) => !(a.libraryId in translations));
+    if (missing.length === 0) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ texts: missing.map((a) => a.hook), to: "en" }),
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as { translations: { original: string; translated: string }[] };
+        if (cancelled) return;
+        setTranslations((prev) => {
+          const next = { ...prev };
+          missing.forEach((a, i) => { next[a.libraryId] = json.translations[i]?.translated ?? a.hook; });
+          return next;
+        });
+      } catch { /* ignore — hooks just stay in original language */ }
+    })();
+    return () => { cancelled = true; };
+  }, [translateOn, data, translations]);
 
   // Oldest-first by default (proven winners); Shuffle re-orders for variety.
   const displayAds = useMemo(() => {
@@ -245,9 +293,15 @@ function SpyTab() {
         <div className="syncbar">
           <div className="l">
             <span className={`live-pill ${data.live ? "on" : "off"}`}>{data.live ? "● LIVE" : "◌ CORPUS"}</span>
-            <span>{data.live ? "Ad Library" : "Harvested ads"} · pulled {relTime(data.fetchedAt)} · refreshes only when you Shuffle</span>
+            <span>{data.live ? "Ad Library" : "Harvested ads"} · {data.country} · pulled {relTime(data.fetchedAt)}</span>
           </div>
           <div className="r">
+            <select className="country-select" value={country} onChange={(e) => changeCountry(e.target.value)} title="Ad Library country">
+              {COUNTRIES.map((c) => <option key={c.code} value={c.code}>{c.label}</option>)}
+            </select>
+            <button className={translateOn ? "on" : ""} onClick={() => setTranslateOn((v) => !v)} title="Translate ad copy to English">
+              🌐 {translateOn ? "English on" : "Translate"}
+            </button>
             <button className={view === "search" ? "on" : ""} onClick={() => setView("search")}>Search</button>
             <button className={view === "saved" ? "on" : ""} onClick={() => setView("saved")}>⭐ Saved ({saved.length})</button>
           </div>
@@ -299,7 +353,7 @@ function SpyTab() {
                 <div className="spy-layout">
                   <div>
                     {displayAds.map((a) => (
-                      <SpyAdRow key={a.libraryId} a={a} oldest={a.libraryId === oldestId} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(spyAdToSaved(a))} />
+                      <SpyAdRow key={a.libraryId} a={a} oldest={a.libraryId === oldestId} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(spyAdToSaved(a))} translated={translateOn ? translations[a.libraryId] : undefined} />
                     ))}
                   </div>
                   <div>

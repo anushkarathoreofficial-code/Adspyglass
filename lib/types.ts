@@ -118,6 +118,7 @@ export interface SpyResult {
   nextSyncAt: string;
   note?: string;
   cursor?: string; // cursor for the NEXT page (undefined = wrap back to page 1)
+  country: string; // ISO code the results were fetched for
 }
 
 export interface CountItem {

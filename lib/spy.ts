@@ -33,11 +33,11 @@ function toAd(a: RawSpyAd): SpyAd {
  * harvested corpus fallback, then computes SpyGlass-style aggregations.
  * @param force bypass the 7h auto-sync cache (manual "Sync now").
  */
-export async function spySearch(query: string, force = false, cursor?: string): Promise<SpyResult> {
+export async function spySearch(query: string, force = false, cursor?: string, country = "US"): Promise<SpyResult> {
   const q = query.trim().toLowerCase();
   const tokens = q.split(/\s+/).filter(Boolean);
 
-  const fetched = await fetchCategoryAds(query, force, cursor);
+  const fetched = await fetchCategoryAds(query, force, cursor, country);
 
   // Corpus is the whole set → filter locally. Provider results are already
   // query-scoped, so keep them as-is.
@@ -74,5 +74,6 @@ export async function spySearch(query: string, force = false, cursor?: string): 
     nextSyncAt: fetched.nextSyncAt,
     note: fetched.note,
     cursor: fetched.cursor,
+    country: (country || "US").toUpperCase(),
   };
 }
