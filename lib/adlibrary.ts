@@ -1,4 +1,5 @@
 import corpus from "@/config/spy-corpus.json";
+import corpusDE from "@/config/spy-corpus-de.json";
 
 export interface RawSpyAd {
   brand: string;
@@ -121,15 +122,19 @@ export async function fetchCategoryAds(query: string, force = false, cursor?: st
   const key = `${cc}::${query.trim().toLowerCase() || "__all__"}::${cursor || "0"}`;
   const now = Date.now();
 
+  // Per-country harvested fallback so e.g. Germany shows real German ads even
+  // when the live provider is unavailable.
+  const fallback = ((cc === "DE" ? corpusDE : corpus) as { ads: RawSpyAd[] }).ads;
+
   if (!hasProvider()) {
     // corpus mode: always "fresh" (static), but still stamped for the sync UI
-    return stamp((corpus as { ads: RawSpyAd[] }).ads, "corpus", false, now, false,
+    return stamp(fallback, "corpus", false, now, false,
       "Add SCRAPECREATORS_API_KEY to fetch live from the Ad Library. Showing harvested ads.");
   }
 
   // The provider needs a keyword — an empty query would 400. Show corpus quietly.
   if (!query.trim()) {
-    return stamp((corpus as { ads: RawSpyAd[] }).ads, "corpus", false, now, false);
+    return stamp(fallback, "corpus", false, now, false);
   }
 
   const hit = CACHE.get(key);
@@ -205,8 +210,8 @@ export async function fetchCategoryAds(query: string, force = false, cursor?: st
     CACHE.set(key, { at: now, ads: deduped, cursor: nextCursor });
     return stamp(deduped, "scrapecreators", true, now, false, undefined, nextCursor);
   } catch (e) {
-    // fail soft to corpus so the UI never breaks
-    return stamp((corpus as { ads: RawSpyAd[] }).ads, "corpus", false, now, false,
-      `Live fetch failed (${e instanceof Error ? e.message : "error"}); showing harvested ads.`);
+    // fail soft to the country's harvested corpus so the UI never breaks
+    return stamp(fallback, "corpus", false, now, false,
+      `Live fetch failed (${e instanceof Error ? e.message : "error"}); showing harvested ${cc} ads.`);
   }
 }
