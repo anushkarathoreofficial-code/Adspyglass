@@ -29,6 +29,7 @@ export interface LiveFetch {
   nextSyncAt: string; // ISO (fetchedAt + 7h)
   cached: boolean;
   note?: string;
+  cursor?: string; // pagination cursor for the NEXT page (undefined = no more pages)
 }
 
 const SEVEN_HOURS = 7 * 60 * 60 * 1000;
@@ -50,9 +51,9 @@ export function hasProvider(): boolean {
 
 // In-memory 7h cache, keyed by category query. Survives across requests within
 // a running server; a fresh server or a `force` sync re-fetches.
-const CACHE = new Map<string, { at: number; ads: RawSpyAd[] }>();
+const CACHE = new Map<string, { at: number; ads: RawSpyAd[]; cursor?: string }>();
 
-function stamp(ads: RawSpyAd[], source: LiveFetch["source"], live: boolean, at: number, cached: boolean, note?: string): LiveFetch {
+function stamp(ads: RawSpyAd[], source: LiveFetch["source"], live: boolean, at: number, cached: boolean, note?: string, cursor?: string): LiveFetch {
   return {
     ads,
     source,
@@ -61,6 +62,7 @@ function stamp(ads: RawSpyAd[], source: LiveFetch["source"], live: boolean, at: 
     nextSyncAt: new Date(at + SEVEN_HOURS).toISOString(),
     cached,
     note,
+    cursor,
   };
 }
 
@@ -114,8 +116,8 @@ interface ScrapeCreatorsAd {
  * Falls back to the harvested corpus when no provider key is set.
  * Results are cached for 7h per category (the auto-sync window); pass force to bypass.
  */
-export async function fetchCategoryAds(query: string, force = false): Promise<LiveFetch> {
-  const key = query.trim().toLowerCase() || "__all__";
+export async function fetchCategoryAds(query: string, force = false, cursor?: string): Promise<LiveFetch> {
+  const key = `${query.trim().toLowerCase() || "__all__"}::${cursor || "0"}`;
   const now = Date.now();
 
   if (!hasProvider()) {
@@ -131,18 +133,19 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
 
   const hit = CACHE.get(key);
   if (!force && hit && now - hit.at < SEVEN_HOURS) {
-    return stamp(hit.ads, "scrapecreators", true, hit.at, true);
+    return stamp(hit.ads, "scrapecreators", true, hit.at, true, undefined, hit.cursor);
   }
 
   try {
-    const url = `https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?query=${encodeURIComponent(query)}&country=US`;
+    const url = `https://api.scrapecreators.com/v1/facebook/adLibrary/search/ads?query=${encodeURIComponent(query)}&country=US${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`;
     const res = await fetch(url, {
       headers: { "x-api-key": process.env.SCRAPECREATORS_API_KEY! },
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`provider ${res.status}`);
-    const json = (await res.json()) as { success?: boolean; searchResults?: ScrapeCreatorsAd[] };
+    const json = (await res.json()) as { success?: boolean; searchResults?: ScrapeCreatorsAd[]; cursor?: string };
     const rows = json.searchResults ?? [];
+    const nextCursor = json.cursor || undefined;
     const ads: RawSpyAd[] = rows
       .filter((r) => r.is_active !== false)
       .map((r) => {
@@ -198,8 +201,8 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
       return true;
     });
 
-    CACHE.set(key, { at: now, ads: deduped });
-    return stamp(deduped, "scrapecreators", true, now, false);
+    CACHE.set(key, { at: now, ads: deduped, cursor: nextCursor });
+    return stamp(deduped, "scrapecreators", true, now, false, undefined, nextCursor);
   } catch (e) {
     // fail soft to corpus so the UI never breaks
     return stamp((corpus as { ads: RawSpyAd[] }).ads, "corpus", false, now, false,

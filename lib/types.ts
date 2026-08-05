@@ -117,6 +117,7 @@ export interface SpyResult {
   fetchedAt: string;
   nextSyncAt: string;
   note?: string;
+  cursor?: string; // cursor for the NEXT page (undefined = wrap back to page 1)
 }
 
 export interface CountItem {

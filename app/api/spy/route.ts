@@ -16,5 +16,6 @@ export async function GET(req: Request) {
   const sp = new URL(req.url).searchParams;
   const q = sp.get("q") ?? "";
   const force = sp.get("sync") === "1";
-  return NextResponse.json(await spySearch(q, force));
+  const cursor = sp.get("cursor") || undefined;
+  return NextResponse.json(await spySearch(q, force, cursor));
 }

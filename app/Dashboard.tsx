@@ -195,22 +195,30 @@ function SpyTab() {
   const [view, setView] = useState<"search" | "saved">("search");
   const [shuffleSeed, setShuffleSeed] = useState(0);
   const queryRef = useRef("");
+  const cursorRef = useRef<string | undefined>(undefined); // next-page cursor for Shuffle
   const { saved, isSaved, toggle } = useSavedAds();
 
-  // doShuffle=true → fresh live pull (bypass cache) + randomized order.
+  // doShuffle=true → page forward into the category (next batch of real ads) + shuffled order.
   const run = useCallback(async (query: string, force = false, doShuffle = false) => {
     queryRef.current = query;
     setLoading(true);
     setError(null);
     setShuffleSeed(doShuffle ? Date.now() : 0);
+    const cursor = doShuffle ? cursorRef.current : undefined;
+    if (!doShuffle) cursorRef.current = undefined; // new search → back to page 1
     try {
-      const res = await fetch(`/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}&t=${Date.now()}`, { cache: "no-store" });
+      const res = await fetch(
+        `/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}&t=${Date.now()}`,
+        { cache: "no-store" }
+      );
       if (res.status === 429) {
         setError("You're searching too fast — wait a few seconds and try again.");
         return;
       }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setData(await res.json());
+      const json: SpyResult = await res.json();
+      setData(json);
+      cursorRef.current = json.cursor; // advance; undefined → next Shuffle wraps to page 1
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally { setLoading(false); }
@@ -276,10 +284,10 @@ function SpyTab() {
             <>
               <div className="spy-count" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <span>
-                  <b>{data.count}</b> ads{data.query ? <> for &ldquo;<b>{data.query}</b>&rdquo;</> : " (all)"} · from {data.totalCorpus} {data.live ? "live" : "harvested"} · {shuffleSeed === 0 ? "oldest-first (proven winners)" : "shuffled"}.
+                  <b>{data.count}</b> ads{data.query ? <> for &ldquo;<b>{data.query}</b>&rdquo;</> : " (all)"} · {shuffleSeed === 0 ? "oldest-first (proven winners)" : "fresh batch"}.
                 </span>
                 <button className="btn" onClick={() => run(queryRef.current || input, true, true)} disabled={loading}>
-                  {loading ? "Shuffling…" : "🔀 Shuffle — fresh pull"}
+                  {loading ? "Pulling…" : "🔀 Shuffle — new ads"}
                 </button>
               </div>
 

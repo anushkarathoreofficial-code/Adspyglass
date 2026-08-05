@@ -19,7 +19,7 @@ function toAd(a: RawSpyAd): SpyAd {
     daysActive: daysBetween(a.startDate, null),
     mediaType: a.mediaType,
     format: a.format,
-    hook: a.hook,
+    hook: a.hook.replace(/^[\s"'“”]+|[\s"'“”]+$/g, "").length ? a.hook : `${a.mediaType === "video" ? "Video" : "Image"} ad — no caption`,
     angle: a.angle,
     cta: a.cta,
     funnel: a.funnel,
@@ -33,11 +33,11 @@ function toAd(a: RawSpyAd): SpyAd {
  * harvested corpus fallback, then computes SpyGlass-style aggregations.
  * @param force bypass the 7h auto-sync cache (manual "Sync now").
  */
-export async function spySearch(query: string, force = false): Promise<SpyResult> {
+export async function spySearch(query: string, force = false, cursor?: string): Promise<SpyResult> {
   const q = query.trim().toLowerCase();
   const tokens = q.split(/\s+/).filter(Boolean);
 
-  const fetched = await fetchCategoryAds(query, force);
+  const fetched = await fetchCategoryAds(query, force, cursor);
 
   // Corpus is the whole set → filter locally. Provider results are already
   // query-scoped, so keep them as-is.
@@ -73,5 +73,6 @@ export async function spySearch(query: string, force = false): Promise<SpyResult
     fetchedAt: fetched.fetchedAt,
     nextSyncAt: fetched.nextSyncAt,
     note: fetched.note,
+    cursor: fetched.cursor,
   };
 }
