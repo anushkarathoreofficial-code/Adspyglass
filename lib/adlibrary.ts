@@ -187,8 +187,19 @@ export async function fetchCategoryAds(query: string, force = false): Promise<Li
       })
       .filter((a) => a.libraryId);
 
-    CACHE.set(key, { at: now, ads });
-    return stamp(ads, "scrapecreators", true, now, false);
+    // Advertisers run the same creative under many ad IDs — collapse duplicates
+    // (same brand + same opening copy) so the list shows distinct ads, keeping
+    // the first (oldest) instance.
+    const seen = new Set<string>();
+    const deduped = ads.filter((a) => {
+      const dupKey = `${a.brand}::${(a.body || a.hook).toLowerCase().replace(/\s+/g, " ").trim().slice(0, 100)}`;
+      if (seen.has(dupKey)) return false;
+      seen.add(dupKey);
+      return true;
+    });
+
+    CACHE.set(key, { at: now, ads: deduped });
+    return stamp(deduped, "scrapecreators", true, now, false);
   } catch (e) {
     // fail soft to corpus so the UI never breaks
     return stamp((corpus as { ads: RawSpyAd[] }).ads, "corpus", false, now, false,

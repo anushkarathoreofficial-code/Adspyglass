@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { BrandsData, Platform, PlatformResult, SavedAd, SpyResult } from "@/lib/types";
 import { doSignOut } from "./actions";
 
@@ -186,16 +186,6 @@ function relTime(iso: string): string {
   const h = Math.round(m / 60);
   return `${h}h ago`;
 }
-function untilTime(iso: string): string {
-  const diff = new Date(iso).getTime() - Date.now();
-  if (diff <= 0) return "now";
-  const totalMin = Math.round(diff / 60000);
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
-}
-
-const SEVEN_HOURS_MS = 7 * 60 * 60 * 1000;
 
 function SpyTab() {
   const [input, setInput] = useState("");
@@ -203,13 +193,16 @@ function SpyTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [view, setView] = useState<"search" | "saved">("search");
+  const [shuffleSeed, setShuffleSeed] = useState(0);
   const queryRef = useRef("");
   const { saved, isSaved, toggle } = useSavedAds();
 
-  const run = useCallback(async (query: string, force = false) => {
+  // doShuffle=true → fresh live pull (bypass cache) + randomized order.
+  const run = useCallback(async (query: string, force = false, doShuffle = false) => {
     queryRef.current = query;
     setLoading(true);
     setError(null);
+    setShuffleSeed(doShuffle ? Date.now() : 0);
     try {
       const res = await fetch(`/api/spy?q=${encodeURIComponent(query)}${force ? "&sync=1" : ""}&t=${Date.now()}`, { cache: "no-store" });
       if (res.status === 429) {
@@ -222,15 +215,17 @@ function SpyTab() {
       setError(e instanceof Error ? e.message : "Failed to load");
     } finally { setLoading(false); }
   }, []);
-  useEffect(() => { run("astrology"); }, [run]); // load a live category on open
-
-  // auto-sync every 7h with fresh ads (while the tab is open)
-  useEffect(() => {
-    const id = setInterval(() => run(queryRef.current, true), SEVEN_HOURS_MS);
-    return () => clearInterval(id);
-  }, [run]);
+  useEffect(() => { run("astrology"); }, [run]); // load a live category on open (no auto-sync after)
 
   const search = (query: string) => { setInput(query); setView("search"); run(query); };
+
+  // Oldest-first by default (proven winners); Shuffle re-orders for variety.
+  const displayAds = useMemo(() => {
+    if (!data) return [];
+    if (shuffleSeed === 0) return data.ads;
+    return [...data.ads].sort(() => Math.random() - 0.5);
+  }, [data, shuffleSeed]);
+  const oldestId = data?.ads[0]?.libraryId;
 
   return (
     <>
@@ -242,12 +237,11 @@ function SpyTab() {
         <div className="syncbar">
           <div className="l">
             <span className={`live-pill ${data.live ? "on" : "off"}`}>{data.live ? "● LIVE" : "◌ CORPUS"}</span>
-            <span>{data.live ? "Ad Library" : "Harvested ads"} · synced {relTime(data.fetchedAt)} · auto-sync in {untilTime(data.nextSyncAt)}</span>
+            <span>{data.live ? "Ad Library" : "Harvested ads"} · pulled {relTime(data.fetchedAt)} · refreshes only when you Shuffle</span>
           </div>
           <div className="r">
             <button className={view === "search" ? "on" : ""} onClick={() => setView("search")}>Search</button>
             <button className={view === "saved" ? "on" : ""} onClick={() => setView("saved")}>⭐ Saved ({saved.length})</button>
-            <button onClick={() => run(queryRef.current || input, true)} disabled={loading}>{loading ? "Syncing…" : "🔄 Sync now"}</button>
           </div>
         </div>
       )}
@@ -280,8 +274,13 @@ function SpyTab() {
 
           {data && !loading && (
             <>
-              <div className="spy-count">
-                <b>{data.count}</b> ads{data.query ? <> for &ldquo;<b>{data.query}</b>&rdquo;</> : " (all)"} · from {data.totalCorpus} {data.live ? "live" : "harvested"}. Sorted oldest-first (proven winners on top).
+              <div className="spy-count" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span>
+                  <b>{data.count}</b> ads{data.query ? <> for &ldquo;<b>{data.query}</b>&rdquo;</> : " (all)"} · from {data.totalCorpus} {data.live ? "live" : "harvested"} · {shuffleSeed === 0 ? "oldest-first (proven winners)" : "shuffled"}.
+                </span>
+                <button className="btn" onClick={() => run(queryRef.current || input, true, true)} disabled={loading}>
+                  {loading ? "Shuffling…" : "🔀 Shuffle — fresh pull"}
+                </button>
               </div>
 
               {data.count === 0 ? (
@@ -291,8 +290,8 @@ function SpyTab() {
               ) : (
                 <div className="spy-layout">
                   <div>
-                    {data.ads.map((a, i) => (
-                      <SpyAdRow key={a.libraryId} a={a} oldest={i === 0} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(spyAdToSaved(a))} />
+                    {displayAds.map((a) => (
+                      <SpyAdRow key={a.libraryId} a={a} oldest={a.libraryId === oldestId} saved={isSaved(a.libraryId)} onToggleSave={() => toggle(spyAdToSaved(a))} />
                     ))}
                   </div>
                   <div>
