@@ -631,7 +631,7 @@ export default function Dashboard({ userEmail }: { userEmail?: string | null }) 
         rel="noreferrer"
       >
         <div className="fb-title">🚧 Still building!</div>
-        <div className="fb-sub">Have suggestions? <span className="fb-link">Tell Anushka</span></div>
+        <div className="fb-sub">Have suggestions? <span className="fb-link">Tell Anushka Rathore</span></div>
       </a>
 
       <header className="top">
