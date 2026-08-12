@@ -15,8 +15,17 @@ const DEFAULT_MAX = 30; // requests per window per IP
 const hits = new Map<string, number[]>();
 
 export function clientIp(req: Request): string {
+  // SECURITY: take the LAST entry in X-Forwarded-For, not the first.
+  // Any client can send an arbitrary X-Forwarded-For header; the only hop we
+  // can trust is our own reverse proxy (Railway/Vercel), which appends the
+  // real peer IP as the last entry in the chain. Trusting the first entry
+  // lets an attacker set a fresh fake IP on every request and fully bypass
+  // this limiter, defeating the "denial of wallet" protection it exists for.
   const xff = req.headers.get("x-forwarded-for");
-  if (xff) return xff.split(",")[0]!.trim();
+  if (xff) {
+    const parts = xff.split(",").map((s) => s.trim()).filter(Boolean);
+    if (parts.length) return parts[parts.length - 1]!;
+  }
   return req.headers.get("x-real-ip") || "unknown";
 }
 
