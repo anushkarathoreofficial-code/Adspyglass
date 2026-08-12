@@ -1,4 +1,23 @@
+import { createHash } from "crypto";
+import { rateLimit } from "./ratelimit";
 import type { Platform, PlatformResult, Story } from "./types";
+
+// Gemini usage is billed per-key, so it gets its own rate limits on top of the
+// general per-IP limiter in the API routes:
+//  - the SHARED server key (process.env.GEMINI_API_KEY, used by anyone who
+//    hasn't supplied their own) is capped tightly and GLOBALLY, since every
+//    call against it spends the app owner's budget, no matter which IP/user
+//    triggers it.
+//  - a client's OWN key (pasted into the 🔑 bar) is capped per-key, mainly to
+//    stop a runaway loop/bug hammering it (and risking Gemini itself
+//    throttling or flagging that key), not to protect the owner's spend.
+const SHARED_KEY_MAX_PER_MIN = 15;
+const OWN_KEY_MAX_PER_MIN = 30;
+const MINUTE_MS = 60_000;
+
+function hashKey(key: string): string {
+  return createHash("sha256").update(key).digest("hex").slice(0, 16);
+}
 
 const MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash";
 
@@ -112,6 +131,21 @@ export async function fetchStories(topic: string, platform: Platform, clientKey?
       platform,
       "unavailable",
       "Add a Gemini API key below (stored only in your browser) to see live stories."
+    );
+  }
+
+  const usingSharedKey = !clientKey;
+  const rl = usingSharedKey
+    ? rateLimit("gemini:shared", SHARED_KEY_MAX_PER_MIN, MINUTE_MS)
+    : rateLimit(`gemini:key:${hashKey(apiKey)}`, OWN_KEY_MAX_PER_MIN, MINUTE_MS);
+  if (!rl.ok) {
+    return emptyResult(
+      q,
+      platform,
+      "unavailable",
+      usingSharedKey
+        ? `The shared Gemini key has hit its usage limit — add your own key in the 🔑 bar above, or try again in ${rl.retryAfter}s.`
+        : `You're sending requests too fast with this key — try again in ${rl.retryAfter}s.`
     );
   }
 
